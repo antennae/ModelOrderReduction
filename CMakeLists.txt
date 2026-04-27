@@ -37,6 +37,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.inl
 
+    ${MOR_SRC}/component/kernel/KernelProjector.h
+
     ${MOR_SRC}/component/loader/MatrixLoader.h
     ${MOR_SRC}/component/loader/MatrixLoader.inl
 
@@ -95,6 +97,14 @@ target_link_libraries(${PROJECT_NAME}
 if (CollisionOBBCapsule_FOUND)
     target_link_libraries(${PROJECT_NAME} CollisionOBBCapsule)
 endif()
+
+# Standalone parity-test dumper for the kPCA KernelProjector.
+add_executable(KernelProjector_dump tools/KernelProjector_dump.cpp)
+target_link_libraries(KernelProjector_dump ${PROJECT_NAME})
+
+# Standalone parity-test dumper for HyperReducedHelperKPCA.
+add_executable(HyperReducedHelperKPCA_dump tools/HyperReducedHelperKPCA_dump.cpp)
+target_link_libraries(HyperReducedHelperKPCA_dump ${PROJECT_NAME})
 
 # Config files and install rules for pythons scripts
 find_file(SofaPython3Tools NAMES "SofaPython3/lib/cmake/SofaPython3/SofaPython3Tools.cmake")
