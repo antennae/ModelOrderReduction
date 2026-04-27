@@ -24,14 +24,19 @@ set(HEADER_FILES
     ${MOR_SRC}/config.h.in
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.h
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldKPCA.h
+    ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldKPCA.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.h
@@ -58,12 +63,17 @@ set(SOURCE_FILES
     ${MOR_SRC}/initModelOrderReduction.cpp
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.cpp
+
+    ${MOR_SRC}/component/kernel/KernelProjector.cpp
 
     ${MOR_SRC}/component/loader/MatrixLoader.cpp
 

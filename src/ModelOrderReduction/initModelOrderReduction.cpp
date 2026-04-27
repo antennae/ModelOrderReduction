@@ -23,6 +23,7 @@
 namespace sofa::component::solidmechanics::spring
 {
     extern void registerHyperReducedRestShapeSpringsForceField(sofa::core::ObjectFactory* factory);
+    extern void registerHyperReducedRestShapeSpringsForceFieldKPCA(sofa::core::ObjectFactory* factory);
 }
 namespace sofa::component::solidmechanics::fem::elastic
 {
@@ -34,11 +35,13 @@ namespace sofa::component::forcefield
     extern void registerHyperReducedHexahedronFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronHyperelasticityFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceField(sofa::core::ObjectFactory* factory);
+    extern void registerHyperReducedTetrahedronFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
 }
 namespace sofa::component::mapping
 {
     extern void registerMORContactMapping(sofa::core::ObjectFactory* factory);
     extern void registerModelOrderReductionMapping(sofa::core::ObjectFactory* factory);
+    extern void registerKernelPCAMapping(sofa::core::ObjectFactory* factory);
 }
 namespace sofa::component::constraint::lagrangian::model
 {
@@ -93,13 +96,16 @@ const char* getModuleLicense()
 void registerObjects(sofa::core::ObjectFactory* factory)
 {
     sofa::component::solidmechanics::spring::registerHyperReducedRestShapeSpringsForceField(factory);
+    sofa::component::solidmechanics::spring::registerHyperReducedRestShapeSpringsForceFieldKPCA(factory);
     sofa::component::solidmechanics::fem::elastic::registerHyperReducedTetrahedralCorotationalFEMForceField( factory);
     sofa::component::solidmechanics::fem::elastic::registerHyperReducedTriangleFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedHexahedronFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceField(factory);
+    sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldKPCA(factory);
     sofa::component::mapping::registerMORContactMapping(factory);
     sofa::component::mapping::registerModelOrderReductionMapping(factory);
+    sofa::component::mapping::registerKernelPCAMapping(factory);
     sofa::component::constraint::lagrangian::model::registerMORUnilateralInteractionConstraint(factory);
     sofa::component::collision::geometry::registerMORPointCollisionModel(factory);
 }
