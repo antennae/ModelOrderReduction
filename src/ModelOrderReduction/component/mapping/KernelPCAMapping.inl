@@ -17,6 +17,7 @@ KernelPCAMapping<TIn, TOut>::KernelPCAMapping()
     , d_kernelBundle(initData(&d_kernelBundle, "kernelBundle",
         "Path to the kPCA bundle directory (X0.txt, snapshots.txt, alpha.txt, kernel.txt). REQUIRED."))
 {
+    d_kernelBundle.setPathType(sofa::core::objectmodel::PathType::DIRECTORY);
 }
 
 template <class TIn, class TOut>
