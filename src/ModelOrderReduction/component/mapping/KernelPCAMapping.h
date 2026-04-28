@@ -56,6 +56,20 @@ protected:
     // Reset to zero in init() and reset(); read/written in apply().
     Eigen::VectorXd m_q_prev;
 
+    // J(u) cache. Within a single animation step, u is constant from
+    // MechanicalVInitVisitor through ConstraintSolver, so the same J(u) is
+    // valid for every applyJT/applyJ/getJ call. SOFA's matrix-projection
+    // path calls applyJT(constraint) repeatedly to build the projected
+    // mass and stiffness; without this cache each call rebuilds J from
+    // scratch (3N·T kernel evaluations for RBF). For the linear kernel J
+    // is state-independent and cached once in init().
+    Eigen::MatrixXd m_J_cached;
+    bool m_J_dirty = true;
+    bool m_J_constant = false;
+
+    /// Rebuild m_J_cached from the current toModel position if m_J_dirty.
+    void ensureJ();
+
 public:
     void init() override;
     void reset() override;

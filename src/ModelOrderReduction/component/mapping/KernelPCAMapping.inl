@@ -48,9 +48,36 @@ void KernelPCAMapping<TIn, TOut>::init()
     // Skip Parent::init() — we don't want it to try loading modesPath.
     sofa::component::mapping::linear::LinearMapping<TIn, TOut>::init();
 
+    // For the linear kernel J(u) = D · αᵀ is independent of u; build it once
+    // and freeze the cache. Other kernels rebuild lazily on first need each
+    // step (ensureJ) and invalidate at end of apply().
+    m_J_dirty = true;
+    m_J_constant = (m_projector->kernelName() == "linear");
+    if (m_J_constant)
+    {
+        m_J_cached = m_projector->J(Eigen::VectorXd::Zero(m_projector->nbDofs()));
+        m_J_dirty = false;
+    }
+
     const auto& rot = this->d_rotation.getValue();
     if (rot[0] != 0.0 || rot[1] != 0.0 || rot[2] != 0.0)
         msg_warning(this) << "rotation Data is not yet wired for kPCA mapping; ignored.";
+}
+
+template <class TIn, class TOut>
+void KernelPCAMapping<TIn, TOut>::ensureJ()
+{
+    if (!m_J_dirty) return;
+
+    const VecCoord u_vec = this->toModel->read(core::vec_id::read_access::position)->getValue();
+    const Eigen::Index N = static_cast<Eigen::Index>(u_vec.size());
+    Eigen::VectorXd u(3 * N);
+    for (Eigen::Index i = 0; i < N; ++i)
+        for (int c = 0; c < 3; ++c)
+            u(3 * i + c) = u_vec[i][c];
+
+    m_J_cached = m_projector->J(u);
+    m_J_dirty = false;
 }
 
 template <class TIn, class TOut>
@@ -61,6 +88,7 @@ void KernelPCAMapping<TIn, TOut>::reset()
     // "the q that produced the current u" keeps Δq = 0 across the reset
     // and the incremental decode stays consistent. q_prev/u_old will be
     // updated together once a real animation step changes q.
+    if (!m_J_constant) m_J_dirty = true;
     Parent::reset();
 }
 
@@ -91,7 +119,11 @@ void KernelPCAMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*
     if (m_q_prev.size() != m) m_q_prev.setZero(m);
     const Eigen::VectorXd dq = q_new - m_q_prev;
 
-    const Eigen::VectorXd du = m_projector->applyJ(u_old, dq);   // J(u_old) · Δq
+    // Use the cached J(u_old): the matrix-assembly path earlier in this step
+    // has already populated it via ensureJ(); if not, we build it now from
+    // the position we just read (toModel still holds u_old).
+    ensureJ();
+    const Eigen::VectorXd du = m_J_cached * dq;                  // J(u_old) · Δq
 
     helper::WriteOnlyAccessor<Data<VecCoord>> out = dOut;
     out.resize(N);
@@ -101,6 +133,10 @@ void KernelPCAMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*
                        u_old(3 * i + 2) + du(3 * i + 2));
 
     m_q_prev = q_new;
+
+    // u just changed; invalidate the cache so next step rebuilds against u_new.
+    // For the linear kernel J is constant — keep the cache forever.
+    if (!m_J_constant) m_J_dirty = true;
 }
 
 
@@ -113,20 +149,15 @@ void KernelPCAMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams
     helper::WriteOnlyAccessor<Data<VecDeriv>> out = dOut;
     helper::ReadAccessor<Data<InVecDeriv>>    in  = dIn;
 
-    const VecCoord u_vec = this->toModel->read(core::vec_id::read_access::position)->getValue();
-    const Eigen::Index N = static_cast<Eigen::Index>(u_vec.size());
+    ensureJ();
+    const Eigen::Index N = static_cast<Eigen::Index>(m_J_cached.rows() / 3);
     const Eigen::Index m = static_cast<Eigen::Index>(in.size());
-
-    Eigen::VectorXd u(3 * N);
-    for (Eigen::Index i = 0; i < N; ++i)
-        for (int c = 0; c < 3; ++c)
-            u(3 * i + c) = u_vec[i][c];
 
     Eigen::VectorXd dq(m);
     for (Eigen::Index j = 0; j < m; ++j)
         dq(j) = in[j][0];
 
-    const Eigen::VectorXd du = m_projector->applyJ(u, dq);
+    const Eigen::VectorXd du = m_J_cached * dq;
 
     out.resize(N);
     for (Eigen::Index i = 0; i < N; ++i)
@@ -143,19 +174,15 @@ void KernelPCAMapping<TIn, TOut>::applyJT(const core::MechanicalParams* /*mparam
     helper::WriteAccessor<Data<InVecDeriv>> out = dOut;
     helper::ReadAccessor<Data<VecDeriv>>    in  = dIn;
 
-    const VecCoord u_vec = this->toModel->read(core::vec_id::read_access::position)->getValue();
+    ensureJ();
     const Eigen::Index N = static_cast<Eigen::Index>(in.size());
 
-    Eigen::VectorXd u(3 * N);
     Eigen::VectorXd f(3 * N);
     for (Eigen::Index i = 0; i < N; ++i)
         for (int c = 0; c < 3; ++c)
-        {
-            u(3 * i + c) = u_vec[i][c];
             f(3 * i + c) = in[i][c];
-        }
 
-    const Eigen::VectorXd df = m_projector->project_force(u, f);  // (m,)
+    const Eigen::VectorXd df = m_J_cached.transpose() * f;        // (m,) = J(u)ᵀ · f
 
     for (Eigen::Index j = 0; j < df.size(); ++j)
         out[j][0] += df(j);
@@ -166,18 +193,16 @@ template <class TIn, class TOut>
 void KernelPCAMapping<TIn, TOut>::applyJT(const core::ConstraintParams* /*cparams*/,
                                           Data<InMatrixDeriv>& dOut, const Data<MatrixDeriv>& dIn)
 {
+    SCOPED_TIMER("applyJT(constraint) in KernelPCAMapping");
+
     InMatrixDeriv& out = *dOut.beginEdit();
     const MatrixDeriv& in = dIn.getValue();
 
-    // Build J(u) once and use for every constraint row.
-    const VecCoord u_vec = this->toModel->read(core::vec_id::read_access::position)->getValue();
-    const Eigen::Index N = static_cast<Eigen::Index>(u_vec.size());
-    Eigen::VectorXd u(3 * N);
-    for (Eigen::Index i = 0; i < N; ++i)
-        for (int c = 0; c < 3; ++c)
-            u(3 * i + c) = u_vec[i][c];
-
-    const Eigen::MatrixXd J_u = m_projector->J(u);   // (3N, m)
+    // Reuse the per-step J(u) cache. SOFA's matrix-projection path drives this
+    // method repeatedly with the same u inside one step; rebuilding J each
+    // call is what made recomputeMappedMassMatrix dominate the profile.
+    ensureJ();
+    const Eigen::MatrixXd& J_u = m_J_cached;        // (3N, m)
     const Eigen::Index m = J_u.cols();
 
     for (auto rowIt = in.begin(), rowEnd = in.end(); rowIt != rowEnd; ++rowIt)
