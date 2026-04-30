@@ -194,7 +194,19 @@ std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string
     if (alpha_mat.cols() != snapshots_mat.cols())
         throw std::runtime_error("alpha cols != snapshots cols (T mismatch)");
 
-    p->setBundleData(std::move(X0), std::move(snapshots_mat), std::move(alpha_mat));
+    Eigen::MatrixXd rigid_mat;
+    const auto rigid_path = (root / "rigid_modes.txt").string();
+    if (fs::exists(rigid_path))
+    {
+        rigid_mat = load_matrix(rigid_path);
+        if (rigid_mat.rows() != X0.size())
+            throw std::runtime_error("rigid_modes rows != X0 length");
+        if (rigid_mat.cols() < 1 || rigid_mat.cols() > 3)
+            throw std::runtime_error("rigid_modes must have 1-3 columns");
+    }
+
+    p->setBundleData(std::move(X0), std::move(snapshots_mat),
+                     std::move(alpha_mat), std::move(rigid_mat));
     return p;
 }
 

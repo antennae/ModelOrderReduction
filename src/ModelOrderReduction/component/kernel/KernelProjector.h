@@ -84,21 +84,26 @@ public:
     }
 
     /// Loaded data accessors.
-    const VectorXd& X0()        const { return m_X0; }
-    const MatrixXd& snapshots() const { return m_snapshots; }
-    const MatrixXd& alpha()     const { return m_alpha; }
-    unsigned nbDofs()           const { return static_cast<unsigned>(m_snapshots.rows()); }
-    unsigned nbSnapshots()      const { return static_cast<unsigned>(m_snapshots.cols()); }
-    unsigned nbModes()          const { return static_cast<unsigned>(m_alpha.rows()); }
+    const VectorXd& X0()         const { return m_X0; }
+    const MatrixXd& snapshots()  const { return m_snapshots; }
+    const MatrixXd& alpha()      const { return m_alpha; }
+    const MatrixXd& rigidModes() const { return m_rigidModes; }  // (3N, k), k=0 if absent
+    unsigned nbDofs()            const { return static_cast<unsigned>(m_snapshots.rows()); }
+    unsigned nbSnapshots()       const { return static_cast<unsigned>(m_snapshots.cols()); }
+    unsigned nbModes()           const { return static_cast<unsigned>(m_alpha.rows()); }
+    unsigned nbRigid()           const { return static_cast<unsigned>(m_rigidModes.cols()); }
 
     virtual const std::string& kernelName() const = 0;
 
     /// Install the loaded bundle data. Called by the bundle-loader factory.
-    void setBundleData(VectorXd X0, MatrixXd snapshots, MatrixXd alpha)
+    /// rigidModes is optional; pass an empty matrix when the bundle has none.
+    void setBundleData(VectorXd X0, MatrixXd snapshots, MatrixXd alpha,
+                       MatrixXd rigidModes = MatrixXd())
     {
         m_X0 = std::move(X0);
         m_snapshots = std::move(snapshots);
         m_alpha = std::move(alpha);
+        m_rigidModes = std::move(rigidModes);
     }
 
 protected:
@@ -107,6 +112,7 @@ protected:
     VectorXd m_X0;          // (3N,)
     MatrixXd m_snapshots;   // (3N, T)
     MatrixXd m_alpha;       // (m, T)
+    MatrixXd m_rigidModes;  // (3N, k), k ∈ {0,1,2,3}; empty when bundle has no rigid modes
 };
 
 

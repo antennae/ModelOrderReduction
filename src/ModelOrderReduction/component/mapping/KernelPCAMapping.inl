@@ -35,27 +35,48 @@ void KernelPCAMapping<TIn, TOut>::init()
                    << "  m="      << m_projector->nbModes()
                    << "  (mstate dofs: in="<< n_in << "  out=" << n_out << ")";
 
-    if (m_projector->nbModes() < n_in)
+    const unsigned nbTotal = m_projector->nbModes() + m_projector->nbRigid();
+    if (nbTotal < n_in)
     {
-        msg_error(this) << "Bundle has " << m_projector->nbModes()
-                        << " modes but mstate requests " << n_in;
+        msg_error(this) << "Bundle has " << nbTotal
+                        << " modes (m_def=" << m_projector->nbModes()
+                        << " + nbRigid=" << m_projector->nbRigid()
+                        << ") but mstate requests " << n_in;
     }
 
     // Reset incremental state: u starts at toModel's rest (set by SOFA);
     // q_prev starts at zero so the first apply produces u_new = u_rest + J(u_rest)·q.
     m_q_prev.setZero(n_in);
 
+    // Cache the bundle's rigid translation columns (empty if no rigid modes).
+    // Used in ensureJ to assemble the augmented (3N, nbRigid+nbDef) Jacobian.
+    m_PhiT = m_projector->rigidModes();
+    const unsigned nbRigid = m_projector->nbRigid();
+    const unsigned nbDef   = m_projector->nbModes();
+
     // Skip Parent::init() — we don't want it to try loading modesPath.
     sofa::component::mapping::linear::LinearMapping<TIn, TOut>::init();
 
     // For the linear kernel J(u) = D · αᵀ is independent of u; build it once
     // and freeze the cache. Other kernels rebuild lazily on first need each
-    // step (ensureJ) and invalidate at end of apply().
+    // step (ensureJ) and invalidate at end of apply(). The augmented cache
+    // is [Φ_t | J_def] when nbRigid > 0.
     m_J_dirty = true;
     m_J_constant = (m_projector->kernelName() == "linear");
     if (m_J_constant)
     {
-        m_J_cached = m_projector->J(Eigen::VectorXd::Zero(m_projector->nbDofs()));
+        const Eigen::MatrixXd J_def = m_projector->J(
+            Eigen::VectorXd::Zero(m_projector->nbDofs()));
+        if (nbRigid > 0)
+        {
+            m_J_cached.resize(m_projector->nbDofs(), nbRigid + nbDef);
+            m_J_cached.leftCols(nbRigid)  = m_PhiT;
+            m_J_cached.rightCols(nbDef)   = J_def;
+        }
+        else
+        {
+            m_J_cached = J_def;
+        }
         m_J_dirty = false;
     }
 
@@ -69,14 +90,46 @@ void KernelPCAMapping<TIn, TOut>::ensureJ()
 {
     if (!m_J_dirty) return;
 
+    // Read absolute position from toModel and convert to displacement frame
+    // (u_disp = u_abs − X0). The projector's snapshots are stored as D = X − X0
+    // (displacement); for RBF the kernel argument must live in the same frame
+    // or `grad_u(u, V_disp)` evaluates a wrong (u − V) difference.
     const VecCoord u_vec = this->toModel->read(core::vec_id::read_access::position)->getValue();
     const Eigen::Index N = static_cast<Eigen::Index>(u_vec.size());
-    Eigen::VectorXd u(3 * N);
+    const Eigen::VectorXd& X0 = m_projector->X0();
+    Eigen::VectorXd u_disp(3 * N);
     for (Eigen::Index i = 0; i < N; ++i)
         for (int c = 0; c < 3; ++c)
-            u(3 * i + c) = u_vec[i][c];
+            u_disp(3 * i + c) = u_vec[i][c] - X0(3 * i + c);
 
-    m_J_cached = m_projector->J(u);
+    const Eigen::Index nbRigid = static_cast<Eigen::Index>(m_projector->nbRigid());
+    const Eigen::Index nbDef   = static_cast<Eigen::Index>(m_projector->nbModes());
+
+    // Strip the rigid-translation component out of u_disp before evaluating
+    // the kPCA part. Training snapshots were deflated against Φ_t, so the
+    // kernel must see the deformation residue, not u_disp itself.
+    Eigen::VectorXd e_def;
+    if (nbRigid > 0)
+    {
+        const Eigen::VectorXd q_t_prev = m_q_prev.head(nbRigid);
+        e_def = u_disp - m_PhiT * q_t_prev;
+    }
+    else
+    {
+        e_def = std::move(u_disp);
+    }
+
+    const Eigen::MatrixXd J_def = m_projector->J(e_def);
+    if (nbRigid > 0)
+    {
+        m_J_cached.resize(3 * N, nbRigid + nbDef);
+        m_J_cached.leftCols(nbRigid) = m_PhiT;
+        m_J_cached.rightCols(nbDef)  = J_def;
+    }
+    else
+    {
+        m_J_cached = J_def;
+    }
     m_J_dirty = false;
 }
 

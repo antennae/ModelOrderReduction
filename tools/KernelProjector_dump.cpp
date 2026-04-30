@@ -73,14 +73,19 @@ int main(int argc, char** argv)
     Eigen::MatrixXd K       = proj->kernel_matrix(snapshots, snapshots);
     Eigen::MatrixXd gradu   = proj->grad_u(u, snapshots);
     Eigen::MatrixXd Ginv_sn = proj->apply_Ginv(u, snapshots);
+    Eigen::MatrixXd Ju      = proj->J(u);
 
     write_matrix(out_dir + "/K.txt",       K);
     write_matrix(out_dir + "/grad_u.txt",  gradu);
     write_matrix(out_dir + "/Ginv_sn.txt", Ginv_sn);
+    write_matrix(out_dir + "/J.txt",       Ju);
+    if (proj->nbRigid() > 0)
+        write_matrix(out_dir + "/rigid_modes.txt", proj->rigidModes());
 
     std::cout << "dumped for kernel=" << proj->kernelName()
               << "  T=" << proj->nbSnapshots()
               << "  3N=" << proj->nbDofs()
-              << "  m=" << proj->nbModes() << "\n";
+              << "  m=" << proj->nbModes()
+              << "  nbRigid=" << proj->nbRigid() << "\n";
     return 0;
 }

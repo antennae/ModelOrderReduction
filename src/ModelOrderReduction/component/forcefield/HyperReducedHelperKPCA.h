@@ -45,7 +45,15 @@ public:
 
     // Loaded kPCA bundle.
     std::unique_ptr<sofa::component::kernel::KernelProjector> m_projector;
+    // Augmented mode count: nbRigid + nbDef. Sized so Gie has one row per
+    // augmented mode at every training capture; phase 4 NNLS reads
+    // m_nbModes rows per snapshot.
     unsigned int m_nbModes = 0;
+    // Rigid columns from the bundle (3N × nbRigid). Empty when the bundle
+    // has no rigid modes; otherwise the leading rows of every Gie capture
+    // are Φ_t[elem_dofs, :]ᵀ · contrib (no G^{-1}, since Φ_t is constant).
+    Eigen::MatrixXd m_PhiT;
+    unsigned int m_nbRigid = 0;
 
     // Per-frame cache — refreshed by prepareFrame(u), consumed by updateGie.
     Eigen::MatrixXd m_grad_all;   // (3N, T)  grad_u(u, snapshots)
@@ -92,6 +100,7 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
 {
     const unsigned V = static_cast<unsigned>(indexList.size());
     const unsigned T = m_projector->nbSnapshots();
+    const unsigned mDef = m_projector->nbModes();
 
     // G^{-1}·contrib — element-local. G^{-1} = σ²·I for both linear (σ²=1) and RBF.
     Eigen::VectorXd Ginv_contrib(3 * V);
@@ -114,8 +123,23 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
         t(j) = s;
     }
 
-    // GieUnit = α · t   — shape (m,)
-    return m_projector->alpha() * t;
+    // Augmented Gie row: [Φ_t^T f_e ; α · t]. Rigid rows do NOT go through
+    // G^{-1} — Φ_t is a constant decoder block, not a kernel-projected one.
+    Eigen::VectorXd GieUnit(m_nbModes);
+    for (unsigned k = 0; k < m_nbRigid; ++k)
+    {
+        double s = 0.0;
+        for (unsigned i = 0; i < V; ++i)
+        {
+            const unsigned dof0 = 3 * indexList[i];
+            s += m_PhiT(dof0 + 0, k) * contrib[i][0]
+               + m_PhiT(dof0 + 1, k) * contrib[i][1]
+               + m_PhiT(dof0 + 2, k) * contrib[i][2];
+        }
+        GieUnit(k) = s;
+    }
+    GieUnit.segment(m_nbRigid, mDef).noalias() = m_projector->alpha() * t;
+    return GieUnit;
 }
 
 

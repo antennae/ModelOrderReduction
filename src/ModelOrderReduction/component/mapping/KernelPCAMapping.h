@@ -54,7 +54,13 @@ protected:
 
     // Cached previous reduced coordinates for the incremental apply.
     // Reset to zero in init() and reset(); read/written in apply().
+    // When the bundle has rigid modes (nbRigid > 0), q is partitioned as
+    // [q_t (nbRigid); q_def (nbDef)] and m_q_prev has size nbRigid+nbDef.
     Eigen::VectorXd m_q_prev;
+
+    // Cached translation columns from the bundle (3N × nbRigid). Empty
+    // when nbRigid == 0; otherwise constant for the lifetime of the mapping.
+    Eigen::MatrixXd m_PhiT;
 
     // J(u) cache. Within a single animation step, u is constant from
     // MechanicalVInitVisitor through ConstraintSolver, so the same J(u) is

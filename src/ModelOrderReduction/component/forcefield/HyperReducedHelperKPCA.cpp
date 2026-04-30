@@ -51,7 +51,9 @@ void HyperReducedHelperKPCA::initMOR(unsigned nbElements, bool printLog)
     {
         m_projector = sofa::component::kernel::loadKernelProjectorFromBundle(
             d_kernelBundle.getValue());
-        m_nbModes = m_projector->nbModes();
+        m_nbRigid = m_projector->nbRigid();
+        m_nbModes = m_projector->nbModes() + m_nbRigid;
+        m_PhiT    = m_projector->rigidModes();   // (3N, nbRigid); empty if 0
 
         // σ² is the G^{-1} scalar (linear kernel leaves σ² = 1).
         if (auto* rbf = dynamic_cast<const RBFKernel*>(m_projector.get()))
@@ -65,7 +67,9 @@ void HyperReducedHelperKPCA::initMOR(unsigned nbElements, bool printLog)
                 << "  kernel=" << m_projector->kernelName()
                 << "  3N=" << m_projector->nbDofs()
                 << "  T=" << m_projector->nbSnapshots()
-                << "  m=" << m_nbModes;
+                << "  m_def=" << m_projector->nbModes()
+                << "  nbRigid=" << m_nbRigid
+                << "  m_total=" << m_nbModes;
 
         Gie.assign(d_nbTrainingSet.getValue() * m_nbModes,
                    std::vector<double>(nbElements, 0.0));
