@@ -24,6 +24,9 @@ namespace sofa::component::solidmechanics::spring
 {
     extern void registerHyperReducedRestShapeSpringsForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedRestShapeSpringsForceFieldKPCA(sofa::core::ObjectFactory* factory);
+#ifdef SOFA_BUILD_AUTOENCODER
+    extern void registerHyperReducedRestShapeSpringsForceFieldAE(sofa::core::ObjectFactory* factory);
+#endif
 }
 namespace sofa::component::solidmechanics::fem::elastic
 {
@@ -36,12 +39,18 @@ namespace sofa::component::forcefield
     extern void registerHyperReducedTetrahedronHyperelasticityFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
+#ifdef SOFA_BUILD_AUTOENCODER
+    extern void registerHyperReducedTetrahedronFEMForceFieldAE(sofa::core::ObjectFactory* factory);
+#endif
 }
 namespace sofa::component::mapping
 {
     extern void registerMORContactMapping(sofa::core::ObjectFactory* factory);
     extern void registerModelOrderReductionMapping(sofa::core::ObjectFactory* factory);
     extern void registerKernelPCAMapping(sofa::core::ObjectFactory* factory);
+#ifdef SOFA_BUILD_AUTOENCODER
+    extern void registerAEMapping(sofa::core::ObjectFactory* factory);
+#endif
 }
 namespace sofa::component::constraint::lagrangian::model
 {
@@ -103,9 +112,16 @@ void registerObjects(sofa::core::ObjectFactory* factory)
     sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldKPCA(factory);
+#ifdef SOFA_BUILD_AUTOENCODER
+    sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldAE(factory);
+    sofa::component::solidmechanics::spring::registerHyperReducedRestShapeSpringsForceFieldAE(factory);
+#endif
     sofa::component::mapping::registerMORContactMapping(factory);
     sofa::component::mapping::registerModelOrderReductionMapping(factory);
     sofa::component::mapping::registerKernelPCAMapping(factory);
+#ifdef SOFA_BUILD_AUTOENCODER
+    sofa::component::mapping::registerAEMapping(factory);
+#endif
     sofa::component::constraint::lagrangian::model::registerMORUnilateralInteractionConstraint(factory);
     sofa::component::collision::geometry::registerMORPointCollisionModel(factory);
 }

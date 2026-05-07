@@ -16,6 +16,15 @@ if (NOT CollisionOBBCapsule_FOUND)
     message(WARNING "The package CollisionOBBCapsule has not been found. It is required to compile all the features of ${PROJECT_NAME}")
 endif()
 
+# Optional: libtorch for the autoencoder Galerkin path (AEProjector + AEMapping).
+# Pass -DTorch_DIR=<libtorch>/share/cmake/Torch on cmake configure.
+find_package(Torch QUIET)
+if(Torch_FOUND)
+    message(STATUS "Found PyTorch at ${TORCH_INSTALL_PREFIX} — building AE classes")
+else()
+    message(STATUS "libtorch not found; AEProjector/AEMapping will not be built")
+endif()
+
 option(USE_COMPRESSED_ROW_SPARSE "Use compressed row sparse format in the mappings" ON)
 
 set(MOR_SRC "src/ModelOrderReduction")
@@ -96,6 +105,26 @@ if (CollisionOBBCapsule_FOUND)
     list(APPEND SOURCE_FILES ${MOR_SRC}/component/contact/MORFrictionContact[OBBCapsule].cpp)
 endif()
 
+if(Torch_FOUND)
+    list(APPEND HEADER_FILES
+        ${MOR_SRC}/component/kernel/AEProjector.h
+        ${MOR_SRC}/component/mapping/AEMapping.h
+        ${MOR_SRC}/component/mapping/AEMapping.inl
+        ${MOR_SRC}/component/forcefield/HyperReducedHelperAE.h
+        ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.h
+        ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.inl
+        ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.h
+        ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.inl
+    )
+    list(APPEND SOURCE_FILES
+        ${MOR_SRC}/component/kernel/AEProjector.cpp
+        ${MOR_SRC}/component/mapping/AEMapping.cpp
+        ${MOR_SRC}/component/forcefield/HyperReducedHelperAE.cpp
+        ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.cpp
+        ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.cpp
+    )
+endif()
+
 add_library(${PROJECT_NAME} SHARED ${HEADER_FILES} ${SOURCE_FILES} ${README_FILES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-DSOFA_BUILD_MODELORDERREDUCTION")
@@ -111,9 +140,19 @@ if (CollisionOBBCapsule_FOUND)
     target_link_libraries(${PROJECT_NAME} CollisionOBBCapsule)
 endif()
 
+if(Torch_FOUND)
+    target_link_libraries(${PROJECT_NAME} ${TORCH_LIBRARIES})
+    target_compile_definitions(${PROJECT_NAME} PUBLIC SOFA_BUILD_AUTOENCODER)
+endif()
+
 # Standalone parity-test dumper for the kPCA KernelProjector.
 add_executable(KernelProjector_dump tools/KernelProjector_dump.cpp)
 target_link_libraries(KernelProjector_dump ${PROJECT_NAME})
+
+if(Torch_FOUND)
+    add_executable(AEProjector_dump tools/AEProjector_dump.cpp)
+    target_link_libraries(AEProjector_dump ${PROJECT_NAME} ${TORCH_LIBRARIES})
+endif()
 
 # Standalone parity-test dumper for HyperReducedHelperKPCA.
 add_executable(HyperReducedHelperKPCA_dump tools/HyperReducedHelperKPCA_dump.cpp)
