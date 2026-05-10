@@ -54,7 +54,6 @@ void AEMapping<TIn, TOut>::init()
     // Skip Parent::init()'s modesPath logic.
     sofa::component::mapping::linear::LinearMapping<TIn, TOut>::init();
 
-    // J(q) is always state-dependent for AE; rebuild on first applyJ/applyJT.
     m_J_dirty = true;
 
     const auto& rot = this->d_rotation.getValue();
@@ -70,13 +69,8 @@ void AEMapping<TIn, TOut>::ensureJ()
     const Eigen::Index nbRigid = static_cast<Eigen::Index>(m_projector->nbRigid());
     const Eigen::Index nbDef   = static_cast<Eigen::Index>(m_projector->nbModes());
     const Eigen::Index N3      = static_cast<Eigen::Index>(m_projector->nbDofs());
-
-    // Decoder Jacobian is a function of latent q, not of input-space u.
-    // Use m_q_prev as the linearization point — it holds the q paired with
-    // the current toModel position.
     const Eigen::VectorXd q_def_prev = (nbRigid > 0) ? m_q_prev.tail(nbDef) : m_q_prev;
     const Eigen::MatrixXd J_def = m_projector->J(q_def_prev);
-
     if (nbRigid > 0)
     {
         m_J_cached.resize(N3, nbRigid + nbDef);
@@ -124,7 +118,6 @@ void AEMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/,
     if (m_q_prev.size() != m) m_q_prev.setZero(m);
     const Eigen::VectorXd dq = q_new - m_q_prev;
 
-    // ensureJ uses m_q_prev — the q paired with u_old.
     ensureJ();
     const Eigen::VectorXd du = m_J_cached * dq;
 
@@ -136,7 +129,7 @@ void AEMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mparams*/,
                        u_old(3 * i + 2) + du(3 * i + 2));
 
     m_q_prev = q_new;
-    m_J_dirty = true;       // q just changed; rebuild J at the new linearisation point next call.
+    m_J_dirty = true;
 }
 
 
