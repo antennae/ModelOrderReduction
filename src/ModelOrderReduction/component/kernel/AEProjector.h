@@ -85,17 +85,6 @@ private:
     struct EncoderImpl;
     std::unique_ptr<EncoderImpl> m_encoder;
 
-    // Per-step forward cache shared by decode/applyJ/project_force. Keyed on
-    // q so the runtime can call the primitives in any order at the same
-    // linearisation point and pay a single forward pass. mutable because the
-    // primitive accessors are logically const.
-    mutable Eigen::VectorXd              m_cache_q;       // last q we ran forward on
-    mutable std::vector<Eigen::VectorXd> m_cache_z;       // pre-activations per layer
-    mutable bool                         m_cache_valid = false;
-
-    /// Refresh m_cache_z if q differs from m_cache_q. No-op when already current.
-    void ensureForwardCache(const Eigen::Ref<const VectorXd>& q) const;
-
     // Bundle metadata
     VectorXd m_X0;
     MatrixXd m_rigidModes;

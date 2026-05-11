@@ -60,14 +60,15 @@ protected:
     // nbRigid == 0; otherwise constant for the lifetime of the mapping.
     Eigen::MatrixXd m_PhiT;
 
-    // Per-step dense J(q) cache. SOFA fires apply/applyJ/applyJT many times
-    // per step (CG iterations, constraint solves). Building J once and doing
-    // dense matmul / sparse indexing per call dominates direct JVP/VJP from
-    // the projector — see project_ae_stage_f_revert: at m=78 trunk, direct
-    // path was 70 ms/step vs cached at 40 ms/step. AEProjector still exposes
-    // direct primitives for callers with low call counts.
+    // J(q) cache. Same per-step amortisation pattern as KernelPCAMapping —
+    // SOFA's matrix-projection path drives applyJT(constraint) repeatedly
+    // within one step with the same q, so building J once and reusing the
+    // dense matrix dominates the alternative (one VJP per call). The
+    // direct-JVP/VJP optimisation is deferred to Stage F.
     Eigen::MatrixXd m_J_cached;
     bool m_J_dirty = true;
+
+    /// Rebuild m_J_cached from m_q_prev if m_J_dirty.
     void ensureJ();
 
 public:
