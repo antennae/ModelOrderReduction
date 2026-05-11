@@ -169,6 +169,7 @@ void AEProjector::loadFromBundle(const std::string& bundle_dir)
         throw std::runtime_error("decoder output dim != 3N from X0");
 
     m_activation = "silu";  // v1 only
+    m_cache_valid = false;  // bundle changed → invalidate forward cache
 
     // 4) Optional encoder.
     const auto encoder_path = (root / "encoder.ts.pt").string();
@@ -186,41 +187,33 @@ void AEProjector::loadFromBundle(const std::string& bundle_dir)
 
 // ---- forward + analytical Jacobian ----
 
-namespace {
-
-// Forward pass returning per-layer pre-activations z_i (used by the Jacobian
-// chain rule). Output of last layer is z_{n-1} (no activation applied to it).
-struct ForwardCache {
-    std::vector<Eigen::VectorXd> z;   // pre-activations, one per layer
-};
-
-ForwardCache forward_with_cache(const std::vector<Eigen::MatrixXd>& W,
-                                const std::vector<Eigen::VectorXd>& b,
-                                const Eigen::VectorXd& q)
+void AEProjector::ensureForwardCache(const Eigen::Ref<const VectorXd>& q) const
 {
-    ForwardCache c;
-    c.z.reserve(W.size());
-    Eigen::VectorXd x = q;
-    for (size_t i = 0; i < W.size(); ++i)
-    {
-        Eigen::VectorXd z = W[i] * x + b[i];
-        c.z.push_back(z);
-        if (i + 1 < W.size())
-            x = silu(z.array()).matrix();
-        else
-            x = z;
-    }
-    return c;
-}
+    if (m_cache_valid
+        && m_cache_q.size() == q.size()
+        && m_cache_q == q)
+        return;
 
-} // anon
+    m_cache_z.resize(m_weights.size());
+    Eigen::VectorXd x = q;
+    for (size_t i = 0; i < m_weights.size(); ++i)
+    {
+        m_cache_z[i] = m_weights[i] * x + m_biases[i];
+        if (i + 1 < m_weights.size())
+            x = silu(m_cache_z[i].array()).matrix();
+        else
+            x = m_cache_z[i];
+    }
+    m_cache_q     = q;
+    m_cache_valid = true;
+}
 
 AEProjector::VectorXd AEProjector::decode(const Eigen::Ref<const VectorXd>& q) const
 {
     if (static_cast<unsigned>(q.size()) != m_nbModes)
         throw std::runtime_error("decode: q.size != nbModes");
-    const auto c = forward_with_cache(m_weights, m_biases, q);
-    return m_col_std.cwiseProduct(c.z.back());     // u_disp = col_std ⊙ g(q)
+    ensureForwardCache(q);
+    return m_col_std.cwiseProduct(m_cache_z.back());     // u_disp = col_std ⊙ g(q)
 }
 
 AEProjector::MatrixXd AEProjector::J(const Eigen::Ref<const VectorXd>& q) const
@@ -228,19 +221,18 @@ AEProjector::MatrixXd AEProjector::J(const Eigen::Ref<const VectorXd>& q) const
     if (static_cast<unsigned>(q.size()) != m_nbModes)
         throw std::runtime_error("J: q.size != nbModes");
 
+    // Kept for parity tests / dumper; the runtime path uses applyJ/project_force.
     // J = diag(col_std) · W_n · D_{n-1} · W_{n-1} · D_{n-2} · ... · W_1
-    // where D_i = diag(σ'(z_i)).  Build right-to-left so the running dim is m
+    // where D_i = diag(σ'(z_i)). Build right-to-left so the running dim is m
     // until the final left-multiply by diag(col_std).
-    const auto c = forward_with_cache(m_weights, m_biases, q);
+    ensureForwardCache(q);
     Eigen::MatrixXd Jcur = m_weights.front();          // (h_1, m)
     for (size_t i = 1; i < m_weights.size(); ++i)
     {
-        const Eigen::VectorXd dprime = silu_prime(c.z[i - 1].array()).matrix();  // (h_{i-1},)
-        // D_{i-1} · Jcur — row-scale Jcur by dprime
+        const Eigen::VectorXd dprime = silu_prime(m_cache_z[i - 1].array()).matrix();
         Jcur.array().colwise() *= dprime.array();
         Jcur = m_weights[i] * Jcur;                    // (h_i, m)
     }
-    // Final: diag(col_std) · Jcur
     Jcur.array().colwise() *= m_col_std.array();
     return Jcur;                                       // (3N, m)
 }
@@ -250,9 +242,20 @@ AEProjector::VectorXd AEProjector::applyJ(const Eigen::Ref<const VectorXd>& q,
 {
     if (static_cast<unsigned>(dq.size()) != m_nbModes)
         throw std::runtime_error("applyJ: dq.size != nbModes");
-    // For v1 just do J · dq via the cached path. Stage F can replace this with
-    // a direct JVP that avoids the (3N, m) materialisation.
-    return J(q) * dq;
+
+    // Direct JVP: push dq through the same chain in m-dimensional steps,
+    // never forming the (3N, m) Jacobian. Cost is one forward + one matvec
+    // per layer, vs J(q)*dq which costs n matvecs *plus* J build.
+    ensureForwardCache(q);
+    Eigen::VectorXd v = dq;
+    for (size_t i = 0; i < m_weights.size(); ++i)
+    {
+        v = m_weights[i] * v;
+        if (i + 1 < m_weights.size())
+            v.array() *= silu_prime(m_cache_z[i].array());
+    }
+    v.array() *= m_col_std.array();
+    return v;
 }
 
 AEProjector::VectorXd AEProjector::project_force(const Eigen::Ref<const VectorXd>& q,
@@ -260,7 +263,18 @@ AEProjector::VectorXd AEProjector::project_force(const Eigen::Ref<const VectorXd
 {
     if (static_cast<unsigned>(f.size()) != m_nbDofs)
         throw std::runtime_error("project_force: f.size != nbDofs");
-    return J(q).transpose() * f;
+
+    // Direct VJP: pull f back through the chain in transpose, ending in m.
+    // Same shape as autograd's reverse-mode pass.
+    ensureForwardCache(q);
+    Eigen::VectorXd v = m_col_std.cwiseProduct(f);                         // (3N,)
+    for (size_t i = m_weights.size(); i-- > 0; )
+    {
+        if (i + 1 < m_weights.size())
+            v.array() *= silu_prime(m_cache_z[i].array());
+        v = m_weights[i].transpose() * v;
+    }
+    return v;                                                              // (m,)
 }
 
 AEProjector::VectorXd AEProjector::encode(const Eigen::Ref<const VectorXd>& u_disp) const
