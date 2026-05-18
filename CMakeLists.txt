@@ -50,6 +50,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.inl
 
     ${MOR_SRC}/component/kernel/KernelProjector.h
 
@@ -83,6 +85,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
     ${MOR_SRC}/component/kernel/KernelProjector.cpp
 
@@ -113,6 +116,8 @@ if(Torch_FOUND)
         ${MOR_SRC}/component/forcefield/HyperReducedHelperAE.h
         ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.h
         ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.inl
+        ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldAE.h
+        ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldAE.inl
         ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.h
         ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.inl
     )
@@ -121,6 +126,7 @@ if(Torch_FOUND)
         ${MOR_SRC}/component/mapping/AEMapping.cpp
         ${MOR_SRC}/component/forcefield/HyperReducedHelperAE.cpp
         ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldAE.cpp
+        ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldAE.cpp
         ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldAE.cpp
     )
 endif()
