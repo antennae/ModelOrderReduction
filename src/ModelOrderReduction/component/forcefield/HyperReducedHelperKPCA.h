@@ -13,9 +13,11 @@
 
 #include <sofa/core/objectmodel/BaseObject.h>
 #include <sofa/core/objectmodel/Data.h>
+#include <sofa/type/vector.h>
 
 #include <Eigen/Core>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -43,6 +45,15 @@ public:
     Data<std::string>  d_RIDPath;
     Data<std::string>  d_weightsPath;
 
+    // FF-mstate -> bundle-deformable index map. One entry per FF mstate
+    // vertex; value is the slot in the bundle's deformable dofs, or -1 for
+    // vertices that don't participate in the kPCA basis (e.g. Rigidify rigid-
+    // group particles whose displacement flows through a RigidMapping). When
+    // empty, the FF assumes the bundle covers every mstate vertex 1:1 and
+    // uses indexList[i] directly — that's the legacy path; if it would OOB
+    // m_grad_all / m_PhiT, projectOneElement throws.
+    Data<sofa::type::vector<int>> d_indexMap;
+
     // Loaded kPCA bundle.
     std::unique_ptr<sofa::component::kernel::KernelProjector> m_projector;
     // Augmented mode count: nbRigid + nbDef. Sized so Gie has one row per
@@ -59,6 +70,9 @@ public:
     Eigen::MatrixXd m_grad_all;   // (3N, T)  grad_u(u, snapshots)
     double m_sigma2 = 1.0;        // cached G^{-1} scalar for RBF / linear
     bool m_frameReady = false;
+
+    // Resolved from d_indexMap at init. Empty -> legacy direct-index path.
+    Eigen::VectorXi m_indexMap;
 
     // Gie bookkeeping (matches HyperReducedHelper’s storage layout so phase 4
     // can consume the output unchanged).
@@ -108,6 +122,23 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
         for (unsigned c = 0; c < 3; ++c)
             Ginv_contrib(3 * i + c) = m_sigma2 * contrib[i][c];
 
+    // Resolve each element vertex's index into the bundle's deformable dof
+    // list. MORreplaceKPCA populates the map at scene build: Rigidify cross-
+    // parent gets the SubsetMultiMapping-derived map (rigid verts -> -1),
+    // single-mstate gets identity. There is no direct-index fallback —
+    // bundles built before the map was plumbed must be rebuilt.
+    std::vector<long> defIdx(V);
+    for (unsigned i = 0; i < V; ++i)
+    {
+        if (static_cast<long>(indexList[i]) >= m_indexMap.size())
+            throw std::runtime_error(
+                "HyperReducedHelperKPCA: vertex index " +
+                std::to_string(indexList[i]) +
+                " exceeds indexMap size " +
+                std::to_string(m_indexMap.size()) + ".");
+        defIdx[i] = m_indexMap(indexList[i]);  // -1 marks a rigid vertex
+    }
+
     // t_j = grad_j[elem_dofs] · Ginv_contrib  — (T,)
     Eigen::VectorXd t(T);
     for (unsigned j = 0; j < T; ++j)
@@ -115,7 +146,8 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
         double s = 0.0;
         for (unsigned i = 0; i < V; ++i)
         {
-            const unsigned dof0 = 3 * indexList[i];
+            if (defIdx[i] < 0) continue;
+            const unsigned dof0 = 3 * static_cast<unsigned>(defIdx[i]);
             s += m_grad_all(dof0 + 0, j) * Ginv_contrib(3 * i + 0)
                + m_grad_all(dof0 + 1, j) * Ginv_contrib(3 * i + 1)
                + m_grad_all(dof0 + 2, j) * Ginv_contrib(3 * i + 2);
@@ -131,7 +163,8 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
         double s = 0.0;
         for (unsigned i = 0; i < V; ++i)
         {
-            const unsigned dof0 = 3 * indexList[i];
+            if (defIdx[i] < 0) continue;
+            const unsigned dof0 = 3 * static_cast<unsigned>(defIdx[i]);
             s += m_PhiT(dof0 + 0, k) * contrib[i][0]
                + m_PhiT(dof0 + 1, k) * contrib[i][1]
                + m_PhiT(dof0 + 2, k) * contrib[i][2];

@@ -280,13 +280,31 @@ inline void HyperReducedTetrahedronFEMForceFieldKPCA<DataTypes>::addForce(const 
     // kPCA-specific: refresh the per-frame ∇_u k(u, snapshots) cache that
     // updateGie consumes. u = current_position − X0 (snapshots are stored
     // as displacements in the bundle).
+    //
+    // u is built at bundle dim (3·N_def), gathering only deformable verts
+    // via m_indexMap. Rigid-group verts (idx == -1) don't enter the kPCA
+    // displacement — their motion is carried by the bundle's rigid-modes
+    // block, not by k(u, snapshots). Without this remap the old code sized
+    // u to the FF mstate dim and indexed X0 OOB; for the linear kernel
+    // grad_u is u-independent so that bug was invisible, for RBF it made
+    // k(u, V) ≈ 0 and produced an all-zero Gie file.
     if (this->d_prepareECSW.getValue())
     {
-        const auto& X0 = this->m_projector->X0();
-        Eigen::VectorXd u(p.size() * 3);
+        const auto& X0  = this->m_projector->X0();
+        const auto& idx = this->m_indexMap;
+        if (static_cast<long>(p.size()) != idx.size())
+            throw std::runtime_error(
+                "HyperReducedTetrahedronFEMForceFieldKPCA: FF mstate has " +
+                std::to_string(p.size()) + " verts but indexMap has " +
+                std::to_string(idx.size()) + " entries.");
+        Eigen::VectorXd u = Eigen::VectorXd::Zero(X0.size());
         for (unsigned i = 0; i < p.size(); ++i)
+        {
+            const int def_i = idx(i);
+            if (def_i < 0) continue;
             for (unsigned c = 0; c < 3; ++c)
-                u(3 * i + c) = p[i][c] - X0(3 * i + c);
+                u(3 * def_i + c) = p[i][c] - X0(3 * def_i + c);
+        }
         this->prepareFrame(u);
     }
 
