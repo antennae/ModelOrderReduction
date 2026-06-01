@@ -42,24 +42,34 @@ using sofa::core::objectmodel::ComponentState;
 
 namespace {
 // Walk up the scene graph from `node` and return the first Vec1d
-// MechanicalState found. Returns nullptr if none. Used at init() time
-// because Link path resolution can fail when the scene was rewired by
-// `modifyGraphSceneAE` between addObject and SOFA's init pass.
+// MechanicalState whose size equals `expectedSize`. Returns nullptr if
+// none. Used at init() time because Link path resolution can fail when the
+// scene was rewired by `modifyGraphSceneAE` between addObject and SOFA's
+// init pass.
+//
+// The size filter is essential on Rigidify + articulated scenes: the
+// reduced node is cross-parented through BOTH the deformable branch (which
+// carries the size-(nbRigid+nbDef) modal MO we want) AND the rigid/servo
+// branch (whose Articulation angle states are also Vec1d, but size 1). A
+// size-blind walk returns whichever it reaches first — typically a servo
+// angle — yielding `qState size 1 != nbRigid + nbDef` and all-zero Gie.
 inline sofa::core::behavior::MechanicalState<sofa::defaulttype::Vec1Types>*
-_find_vec1d_mstate_upwards(sofa::core::objectmodel::BaseContext* ctx)
+_find_vec1d_mstate_upwards(sofa::core::objectmodel::BaseContext* ctx,
+                           std::size_t expectedSize)
 {
     using sofa::defaulttype::Vec1Types;
     using sofa::core::behavior::MechanicalState;
     if (!ctx) return nullptr;
     auto* mstate = ctx->getMechanicalState();
     auto* typed  = dynamic_cast<MechanicalState<Vec1Types>*>(mstate);
-    if (typed) return typed;
-    // Recurse into parents.
+    if (typed && static_cast<std::size_t>(typed->getSize()) == expectedSize)
+        return typed;
+    // Recurse into parents (other Vec1d states of the wrong size are skipped).
     auto* node = dynamic_cast<sofa::core::objectmodel::BaseNode*>(ctx);
     if (!node) return nullptr;
     for (auto* parent : node->getParents())
     {
-        auto* found = _find_vec1d_mstate_upwards(parent->getContext());
+        auto* found = _find_vec1d_mstate_upwards(parent->getContext(), expectedSize);
         if (found) return found;
     }
     return nullptr;
@@ -283,12 +293,21 @@ void HyperReducedTetrahedronFEMForceFieldAE<DataTypes>::init()
     TetrahedronFEMForceField<DataTypes>::init();
     this->initMOR(this->_indexedElements->size(), notMuted());
 
-    m_qState = _find_vec1d_mstate_upwards(this->getContext());
-    if (this->d_prepareECSW.getValue() && !m_qState)
+    // The latent Vec1d state is only read during Gie collection (prepareECSW);
+    // at runtime AEMapping::applyJT does the contraction, so m_qState is unused.
+    // initMOR has just populated m_nbRigid/m_nbDef from the bundle, so we know
+    // the exact size to look for — see the size filter rationale in the finder.
+    if (this->d_prepareECSW.getValue())
     {
-        msg_error(this) << "AE force field requires a Vec1d MechanicalObject "
-                          "in the parent chain (typically the AEMapping's "
-                          "input mstate). None found.";
+        const std::size_t expected =
+            static_cast<std::size_t>(this->m_nbRigid) + static_cast<std::size_t>(this->m_nbDef);
+        m_qState = _find_vec1d_mstate_upwards(this->getContext(), expected);
+        if (!m_qState)
+        {
+            msg_error(this) << "AE force field requires a Vec1d MechanicalObject "
+                               "of size " << expected << " (the AEMapping's input "
+                               "latent state) in the parent chain. None found.";
+        }
     }
 }
 

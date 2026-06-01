@@ -61,10 +61,12 @@ public:
 
     enum { SMALL = 0, LARGE = 1, POLAR = 2, SVD = 3 };
 
-    // Cached pointer to the Vec1d MechanicalObject holding q. Resolved at
-    // init() time by walking up the scene graph — robust to scene-graph
-    // rewiring done by `modifyGraphSceneAE` (which the SOFA Link
-    // path-resolution machinery doesn't always cope with).
+    // Cached pointer to the Vec1d MechanicalObject holding q. Only needed
+    // during Gie collection (prepareECSW); null at runtime. Resolved at
+    // init() by walking up the scene graph for the Vec1d state whose size
+    // matches nbRigid+nbDef — robust to scene-graph rewiring done by
+    // `modifyGraphSceneAE`, and to cross-parented Rigidify/articulated
+    // topologies where smaller Vec1d (servo angle) states also exist.
     sofa::core::behavior::MechanicalState<sofa::defaulttype::Vec1Types>* m_qState = nullptr;
 
 protected:
