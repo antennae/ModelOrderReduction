@@ -50,6 +50,7 @@ namespace sofa::component::mapping
     extern void registerMORContactMapping(sofa::core::ObjectFactory* factory);
     extern void registerModelOrderReductionMapping(sofa::core::ObjectFactory* factory);
     extern void registerKernelPCAMapping(sofa::core::ObjectFactory* factory);
+    extern void registerKernelPreImageMapping(sofa::core::ObjectFactory* factory);
 #ifdef SOFA_BUILD_AUTOENCODER
     extern void registerAEMapping(sofa::core::ObjectFactory* factory);
 #endif
@@ -123,6 +124,7 @@ void registerObjects(sofa::core::ObjectFactory* factory)
     sofa::component::mapping::registerMORContactMapping(factory);
     sofa::component::mapping::registerModelOrderReductionMapping(factory);
     sofa::component::mapping::registerKernelPCAMapping(factory);
+    sofa::component::mapping::registerKernelPreImageMapping(factory);
 #ifdef SOFA_BUILD_AUTOENCODER
     sofa::component::mapping::registerAEMapping(factory);
 #endif

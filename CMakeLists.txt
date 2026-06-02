@@ -63,6 +63,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.inl
     ${MOR_SRC}/component/mapping/KernelPCAMapping.h
     ${MOR_SRC}/component/mapping/KernelPCAMapping.inl
+    ${MOR_SRC}/component/mapping/KernelPreImageMapping.h
+    ${MOR_SRC}/component/mapping/KernelPreImageMapping.inl
     ${MOR_SRC}/component/mapping/MORContactMapping.h
     ${MOR_SRC}/component/mapping/MORContactMapping.inl
 
@@ -95,6 +97,7 @@ set(SOURCE_FILES
 
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.cpp
     ${MOR_SRC}/component/mapping/KernelPCAMapping.cpp
+    ${MOR_SRC}/component/mapping/KernelPreImageMapping.cpp
     ${MOR_SRC}/component/mapping/MORContactMapping.cpp
 
     ${MOR_SRC}/component/contact/MORFrictionContact.cpp
