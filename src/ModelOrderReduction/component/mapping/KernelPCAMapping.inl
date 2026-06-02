@@ -88,7 +88,10 @@ void KernelPCAMapping<TIn, TOut>::init()
 template <class TIn, class TOut>
 void KernelPCAMapping<TIn, TOut>::ensureJ()
 {
+    SCOPED_TIMER("ensureJ in KernelPCAMapping");
     if (!m_J_dirty) return;
+
+    sofa::helper::AdvancedTimer::stepBegin("ensureJ: get J_def");
 
     // Read absolute position from toModel and convert to displacement frame
     // (u_disp = u_abs − X0). The projector's snapshots are stored as D = X − X0
@@ -118,8 +121,8 @@ void KernelPCAMapping<TIn, TOut>::ensureJ()
     {
         e_def = std::move(u_disp);
     }
-
     const Eigen::MatrixXd J_def = m_projector->J(e_def);
+    sofa::helper::AdvancedTimer::stepEnd("ensureJ: get J_def");
     if (nbRigid > 0)
     {
         m_J_cached.resize(3 * N, nbRigid + nbDef);
@@ -202,19 +205,30 @@ void KernelPCAMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mparams
     helper::WriteOnlyAccessor<Data<VecDeriv>> out = dOut;
     helper::ReadAccessor<Data<InVecDeriv>>    in  = dIn;
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: ensure J");
     ensureJ();
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: ensure J");
+
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: create Eigen vectors");
     const Eigen::Index N = static_cast<Eigen::Index>(m_J_cached.rows() / 3);
     const Eigen::Index m = static_cast<Eigen::Index>(in.size());
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: create Eigen vectors");
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: unpack input");
     Eigen::VectorXd dq(m);
     for (Eigen::Index j = 0; j < m; ++j)
         dq(j) = in[j][0];
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: unpack input");
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: compute du");
     const Eigen::VectorXd du = m_J_cached * dq;
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: compute du");
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: pack output");
     out.resize(N);
     for (Eigen::Index i = 0; i < N; ++i)
         out[i] = Deriv(du(3 * i + 0), du(3 * i + 1), du(3 * i + 2));
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: pack output");
 }
 
 

@@ -87,10 +87,13 @@ Eigen::VectorXd KernelPreImageMapping<TIn, TOut>::readLatent() const
 template <class TIn, class TOut>
 void KernelPreImageMapping<TIn, TOut>::ensureJ()
 {
+    SCOPED_TIMER("ensureJ in KernelPreImageMapping");
     if (!m_J_dirty) return;
     const Eigen::VectorXd q = readLatent();
     const Eigen::VectorXd u_init = m_proj->uInit(q);
+    sofa::helper::AdvancedTimer::stepBegin("ensureJ: compute J");
     m_J_cached = m_proj->jacobianLocal(q, u_init, m_u_prev);   // (3N, m)
+    sofa::helper::AdvancedTimer::stepEnd("ensureJ: compute J");
     m_q_cached = q;
     m_J_dirty = false;
 }
@@ -143,18 +146,30 @@ void KernelPreImageMapping<TIn, TOut>::applyJ(const core::MechanicalParams* /*mp
     helper::WriteOnlyAccessor<Data<VecDeriv>> out = dOut;
     helper::ReadAccessor<Data<InVecDeriv>>    in  = dIn;
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: ensure J");
     ensureJ();
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: ensure J");
+
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: create Eigen vectors");
     const Eigen::Index N = static_cast<Eigen::Index>(m_J_cached.rows() / 3);
     const Eigen::Index m = static_cast<Eigen::Index>(in.size());
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: create Eigen vectors");
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: unpack input");
     Eigen::VectorXd dq(m);
     for (Eigen::Index j = 0; j < m; ++j)
         dq(j) = in[j][0];
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: unpack input");
 
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: compute du");
     const Eigen::VectorXd du = m_J_cached * dq;
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: compute du");
+
+    sofa::helper::AdvancedTimer::stepBegin("applyJ: pack output");
     out.resize(N);
     for (Eigen::Index i = 0; i < N; ++i)
         out[i] = Deriv(du(3 * i + 0), du(3 * i + 1), du(3 * i + 2));
+    sofa::helper::AdvancedTimer::stepEnd("applyJ: pack output");
 }
 
 template <class TIn, class TOut>
