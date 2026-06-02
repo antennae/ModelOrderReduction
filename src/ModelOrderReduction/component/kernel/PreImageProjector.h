@@ -96,10 +96,21 @@ public:
     MatrixXd jacobianLocal(const Eigen::Ref<const VectorXd>& q,
                            const Eigen::Ref<const VectorXd>& u_init,
                            const Eigen::Ref<const VectorXd>& u_prev) const;
+    // Same Jacobian, but evaluated at a SUPPLIED pre-image u instead of
+    // re-solving. The mapping reuses apply()'s decoded u = Ψ(q), dropping the
+    // redundant reduced-Newton solve (the per-step cost driver). W is still
+    // built from the baseline u_init, exactly as in jacobianLocal.
+    MatrixXd jacobianAt(const Eigen::Ref<const VectorXd>& q,
+                        const Eigen::Ref<const VectorXd>& u_init,
+                        const Eigen::Ref<const VectorXd>& u) const;
 
 private:
     /// W ← orth([W_kNN | J_init]) so the η M·J_init Jacobian term is representable.
     MatrixXd augmentWithBaseline(const MatrixXd& Wknn) const;
+    /// W (WᵀK_pre(u) W)⁻¹ (WᵀN(u)) — shared by jacobianLocal / jacobianAt.
+    MatrixXd jacobianInBasis(const Eigen::Ref<const VectorXd>& q,
+                             const Eigen::Ref<const MatrixXd>& W,
+                             const Eigen::Ref<const VectorXd>& u) const;
 
     std::unique_ptr<KernelProjector> m_kernel;  // RBF, bundle installed
     double   m_sigma = 1.0;

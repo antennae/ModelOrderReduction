@@ -71,6 +71,14 @@ protected:
     bool m_J_dirty = true;
     Eigen::VectorXd m_q_cached;   ///< latent at which m_J_cached was built (applyDJT FD)
 
+    // apply() decodes u = Ψ(q) via the full fixed-point solve; cache it so
+    // ensureJ builds J at that exact pre-image (jacobianAt) instead of
+    // re-solving via the slower reduced Newton — the per-step cost driver.
+    // m_have_decoded guards the first ensureJ that may precede any apply.
+    Eigen::VectorXd m_u_decoded;  ///< Ψ(q) from the last apply()
+    Eigen::VectorXd m_q_decoded;  ///< latent q that m_u_decoded was decoded from
+    bool m_have_decoded = false;
+
     /// Rebuild m_J_cached = J(q) from the current fromModel latent if dirty.
     void ensureJ();
     /// Read the parent (reduced) latent q from fromModel.

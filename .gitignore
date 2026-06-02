@@ -129,3 +129,9 @@ dmypy.json
 .pyre/
 
 */debug/
+
+# IDE
+.vscode/
+
+# Generated example run outputs (modes/RID/weights/Gie/state/meshes)
+examples/**/output/

@@ -244,6 +244,16 @@ PreImageProjector::solveReduced(const Eigen::Ref<const VectorXd>& q,
 }
 
 PreImageProjector::MatrixXd
+PreImageProjector::jacobianInBasis(const Eigen::Ref<const VectorXd>& q,
+                                   const Eigen::Ref<const MatrixXd>& W,
+                                   const Eigen::Ref<const VectorXd>& u) const
+{
+    const MatrixXd N  = numerator(u);                 // J̃ + ηM·J_init
+    const MatrixXd WtKW = reducedHessian(u, q, W);    // (r, r)
+    return W * WtKW.ldlt().solve(W.transpose() * N);  // (3N, m)
+}
+
+PreImageProjector::MatrixXd
 PreImageProjector::jacobianLocal(const Eigen::Ref<const VectorXd>& q,
                                  const Eigen::Ref<const VectorXd>& u_init,
                                  const Eigen::Ref<const VectorXd>& u_prev) const
@@ -251,9 +261,16 @@ PreImageProjector::jacobianLocal(const Eigen::Ref<const VectorXd>& q,
     const VectorXd u0 = u_init;                       // baseline = F anchor
     const MatrixXd W  = augmentWithBaseline(localBasisKNN(u0));
     const VectorXd u  = solveReduced(q, u0, u_prev, W);
-    const MatrixXd N  = numerator(u);                 // J̃ + ηM·J_init
-    const MatrixXd WtKW = reducedHessian(u, q, W);    // (r, r)
-    return W * WtKW.ldlt().solve(W.transpose() * N);  // (3N, m)
+    return jacobianInBasis(q, W, u);
+}
+
+PreImageProjector::MatrixXd
+PreImageProjector::jacobianAt(const Eigen::Ref<const VectorXd>& q,
+                              const Eigen::Ref<const VectorXd>& u_init,
+                              const Eigen::Ref<const VectorXd>& u) const
+{
+    const MatrixXd W = augmentWithBaseline(localBasisKNN(u_init));
+    return jacobianInBasis(q, W, u);
 }
 
 

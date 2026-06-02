@@ -91,8 +91,17 @@ void KernelPreImageMapping<TIn, TOut>::ensureJ()
     if (!m_J_dirty) return;
     const Eigen::VectorXd q = readLatent();
     const Eigen::VectorXd u_init = m_proj->uInit(q);
+    // Reuse the pre-image apply() already decoded for this q; only re-solve if
+    // ensureJ is reached for a q apply() has not processed (defensive — e.g. a
+    // Jacobian request before the first position propagation).
+    Eigen::VectorXd u;
+    if (m_have_decoded && m_q_decoded.size() == q.size()
+        && (m_q_decoded - q).norm() <= 1e-12 * (1.0 + q.norm()))
+        u = m_u_decoded;
+    else
+        u = m_proj->solve(q, u_init, m_u_prev);
     sofa::helper::AdvancedTimer::stepBegin("ensureJ: compute J");
-    m_J_cached = m_proj->jacobianLocal(q, u_init, m_u_prev);   // (3N, m)
+    m_J_cached = m_proj->jacobianAt(q, u_init, u);   // (3N, m), J at the decoded u
     sofa::helper::AdvancedTimer::stepEnd("ensureJ: compute J");
     m_q_cached = q;
     m_J_dirty = false;
@@ -102,6 +111,7 @@ template <class TIn, class TOut>
 void KernelPreImageMapping<TIn, TOut>::reset()
 {
     m_u_prev.setZero(m_proj->nbDofs());
+    m_have_decoded = false;   // force a fresh solve in the first post-reset ensureJ
     m_J_dirty = true;
     Parent::reset();
 }
@@ -133,6 +143,9 @@ void KernelPreImageMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mpa
                        X0(3 * i + 1) + u(3 * i + 1),
                        X0(3 * i + 2) + u(3 * i + 2));
 
+    m_u_decoded = u;    // reused by ensureJ → jacobianAt (skips the re-solve)
+    m_q_decoded = q;
+    m_have_decoded = true;
     m_u_prev = u;
     m_J_dirty = true;   // q changed; rebuild J(q) at next ensureJ
 }
