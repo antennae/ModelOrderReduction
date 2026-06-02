@@ -54,6 +54,7 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.inl
 
     ${MOR_SRC}/component/kernel/KernelProjector.h
+    ${MOR_SRC}/component/kernel/PreImageProjector.h
 
     ${MOR_SRC}/component/loader/MatrixLoader.h
     ${MOR_SRC}/component/loader/MatrixLoader.inl
@@ -88,6 +89,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
     ${MOR_SRC}/component/kernel/KernelProjector.cpp
+    ${MOR_SRC}/component/kernel/PreImageProjector.cpp
 
     ${MOR_SRC}/component/loader/MatrixLoader.cpp
 
@@ -154,6 +156,10 @@ endif()
 # Standalone parity-test dumper for the kPCA KernelProjector.
 add_executable(KernelProjector_dump tools/KernelProjector_dump.cpp)
 target_link_libraries(KernelProjector_dump ${PROJECT_NAME})
+
+# Standalone parity-test dumper for the explicit pre-image head.
+add_executable(PreImageProjector_dump tools/PreImageProjector_dump.cpp)
+target_link_libraries(PreImageProjector_dump ${PROJECT_NAME})
 
 if(Torch_FOUND)
     add_executable(AEProjector_dump tools/AEProjector_dump.cpp)
