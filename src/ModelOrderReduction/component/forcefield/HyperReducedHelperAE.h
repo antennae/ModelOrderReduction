@@ -12,9 +12,11 @@
 
 #include <sofa/core/objectmodel/BaseObject.h>
 #include <sofa/core/objectmodel/Data.h>
+#include <sofa/type/vector.h>
 
 #include <Eigen/Core>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -40,6 +42,15 @@ public:
     Data<std::string>  d_RIDPath;
     Data<std::string>  d_weightsPath;
 
+    // FF-mstate -> bundle-deformable index map. One entry per FF mstate
+    // vertex; value is the slot in the bundle's deformable dofs, or -1 for
+    // vertices that don't participate in the AE decoder (e.g. Rigidify rigid-
+    // group particles whose displacement flows through a RigidMapping).
+    // Mirrors HyperReducedHelperKPCA::d_indexMap — required unconditionally
+    // (no direct-index fallback): without it projectOneElement OOBs J_def /
+    // PhiT whenever the FF mstate is larger than the bundle's deformable dim.
+    Data<sofa::type::vector<int>> d_indexMap;
+
     // Loaded AE bundle.
     std::unique_ptr<sofa::component::kernel::AEProjector> m_projector;
     // Augmented mode count: nbRigid + nbDef.
@@ -51,6 +62,9 @@ public:
     // Per-frame cache — refreshed by prepareFrame(q_def), consumed by updateGie.
     Eigen::MatrixXd m_J_def;      // (3N, m_def)  J(q_def) from AEProjector
     bool m_frameReady = false;
+
+    // Resolved from d_indexMap at init.
+    Eigen::VectorXi m_indexMap;
 
     // Gie bookkeeping (matches HyperReducedHelperKPCA so phase 4 reads it
     // back unchanged).
@@ -93,15 +107,32 @@ Eigen::VectorXd HyperReducedHelperAE::projectOneElement(
 {
     const unsigned V = static_cast<unsigned>(indexList.size());
 
+    // Resolve each element vertex into the bundle's deformable dof list.
+    // -1 marks a rigid vertex (Rigidify) whose motion flows through a
+    // RigidMapping, not the AE decoder — it contributes to neither the
+    // J_def block nor the rigid-mode block here. Mirrors the kPCA helper.
+    std::vector<long> defIdx(V);
+    for (unsigned i = 0; i < V; ++i)
+    {
+        if (static_cast<long>(indexList[i]) >= m_indexMap.size())
+            throw std::runtime_error(
+                "HyperReducedHelperAE: vertex index " +
+                std::to_string(indexList[i]) +
+                " exceeds indexMap size " +
+                std::to_string(m_indexMap.size()) + ".");
+        defIdx[i] = m_indexMap(indexList[i]);
+    }
+
     Eigen::VectorXd GieUnit(m_nbModes);
 
-    // Rigid rows: Φ_t[elem_dofs, :]ᵀ · contrib (no J_def involvement).
+    // Rigid rows: Φ_t[def_dofs, :]ᵀ · contrib (no J_def involvement).
     for (unsigned k = 0; k < m_nbRigid; ++k)
     {
         double s = 0.0;
         for (unsigned i = 0; i < V; ++i)
         {
-            const unsigned dof0 = 3 * indexList[i];
+            if (defIdx[i] < 0) continue;
+            const unsigned dof0 = 3 * static_cast<unsigned>(defIdx[i]);
             s += m_PhiT(dof0 + 0, k) * contrib[i][0]
                + m_PhiT(dof0 + 1, k) * contrib[i][1]
                + m_PhiT(dof0 + 2, k) * contrib[i][2];
@@ -109,13 +140,14 @@ Eigen::VectorXd HyperReducedHelperAE::projectOneElement(
         GieUnit(k) = s;
     }
 
-    // Deformation rows: J_def[elem_dofs, :]ᵀ · contrib.
+    // Deformation rows: J_def[def_dofs, :]ᵀ · contrib.
     for (unsigned k = 0; k < m_nbDef; ++k)
     {
         double s = 0.0;
         for (unsigned i = 0; i < V; ++i)
         {
-            const unsigned dof0 = 3 * indexList[i];
+            if (defIdx[i] < 0) continue;
+            const unsigned dof0 = 3 * static_cast<unsigned>(defIdx[i]);
             s += m_J_def(dof0 + 0, k) * contrib[i][0]
                + m_J_def(dof0 + 1, k) * contrib[i][1]
                + m_J_def(dof0 + 2, k) * contrib[i][2];

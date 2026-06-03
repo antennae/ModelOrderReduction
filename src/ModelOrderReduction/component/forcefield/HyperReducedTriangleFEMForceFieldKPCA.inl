@@ -45,14 +45,30 @@ void HyperReducedTriangleFEMForceFieldKPCA<DataTypes>::addForce(
     f1.resize(x1.size());
 
     // kPCA-specific: refresh the per-frame ∇_u k(u, snapshots) cache that
-    // updateGie consumes. u = current_position − X0.
+    // updateGie consumes. u is built at bundle dim (3·N_def), gathering only
+    // deformable verts via m_indexMap; rigid-group verts (idx == -1) stay at
+    // zero (their motion is carried by the bundle's rigid-modes block, not by
+    // k(u, snapshots)). Mirrors the tet KPCA FF — without this remap the old
+    // code sized u to the FF mstate dim and indexed X0 OOB on Rigidify
+    // topology (invisible for the linear kernel since grad_u is u-independent,
+    // but it zeroed k(u, V) for RBF → all-zero Gie).
     if (this->d_prepareECSW.getValue())
     {
-        const auto& X0 = this->m_projector->X0();
-        Eigen::VectorXd u(x1.size() * 3);
+        const auto& X0  = this->m_projector->X0();
+        const auto& idx = this->m_indexMap;
+        if (static_cast<long>(x1.size()) != idx.size())
+            throw std::runtime_error(
+                "HyperReducedTriangleFEMForceFieldKPCA: FF mstate has " +
+                std::to_string(x1.size()) + " verts but indexMap has " +
+                std::to_string(idx.size()) + " entries.");
+        Eigen::VectorXd u = Eigen::VectorXd::Zero(X0.size());
         for (unsigned i = 0; i < x1.size(); ++i)
+        {
+            const int def_i = idx(i);
+            if (def_i < 0) continue;
             for (unsigned c = 0; c < 3; ++c)
-                u(3 * i + c) = x1[i][c] - X0(3 * i + c);
+                u(3 * def_i + c) = x1[i][c] - X0(3 * def_i + c);
+        }
         this->prepareFrame(u);
     }
 

@@ -31,6 +31,12 @@ HyperReducedHelperAE::HyperReducedHelperAE()
           "Path to the Reduced Integration domain when performing the ECSW method"))
     , d_weightsPath(initData(&d_weightsPath, std::string("weights.txt"), "weightsPath",
           "Path to the weights when performing the ECSW method"))
+    , d_indexMap(initData(&d_indexMap, "indexMap",
+          "Per-mstate-vertex map into the bundle's deformable slot (-1 = "
+          "rigid vertex, no AE contribution). Required when the FF's mstate "
+          "is larger than the bundle's deformable dim (Rigidify topology). "
+          "MORreplaceAE populates it — identity for single-mstate topology, "
+          "SubsetMultiMapping-derived for Rigidify."))
 {
     static const std::string groupName{"HyperReduction"};
     d_prepareECSW.setGroup(groupName);
@@ -40,6 +46,7 @@ HyperReducedHelperAE::HyperReducedHelperAE()
     d_performECSW.setGroup(groupName);
     d_RIDPath.setGroup(groupName);
     d_weightsPath.setGroup(groupName);
+    d_indexMap.setGroup(groupName);
 }
 
 
@@ -65,6 +72,24 @@ void HyperReducedHelperAE::initMOR(unsigned nbElements, bool printLog)
 
         Gie.assign(d_nbTrainingSet.getValue() * m_nbModes,
                    std::vector<double>(nbElements, 0.0));
+
+        // FF-mstate -> bundle-deformable index map. MORreplaceAE populates it
+        // unconditionally — identity for single-mstate topology,
+        // SubsetMultiMapping-derived (with -1 for rigid verts) for Rigidify.
+        // Mirrors HyperReducedHelperKPCA: no direct-index fallback.
+        const auto& mapData = d_indexMap.getValue();
+        if (mapData.empty())
+            throw std::runtime_error(
+                "HyperReducedHelperAE: indexMap Data field is empty. "
+                "MORreplaceAE should always populate it; reduced scenes built "
+                "before this plumbing landed must be regenerated.");
+        m_indexMap.resize(mapData.size());
+        for (std::size_t i = 0; i < mapData.size(); ++i)
+            m_indexMap(static_cast<Eigen::Index>(i)) = mapData[i];
+        if (printLog)
+            msg_info("HyperReducedHelperAE")
+                << "indexMap set: " << mapData.size() << " mstate verts -> "
+                << "bundle slots (-1 entries: rigid verts skipped).";
     }
 
     if (d_performECSW.getValue())
