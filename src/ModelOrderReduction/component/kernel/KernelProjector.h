@@ -106,6 +106,10 @@ public:
         m_rigidModes = std::move(rigidModes);
     }
 
+    /// Optional diagonal scale s for normalized (z = u ⊘ s) kernels. Empty ⇒ unscaled.
+    void setScale(VectorXd scale) { m_scale = std::move(scale); }
+    const VectorXd& scale() const { return m_scale; }
+
 protected:
     KernelProjector() = default;
 
@@ -113,6 +117,7 @@ protected:
     MatrixXd m_snapshots;   // (3N, T)
     MatrixXd m_alpha;       // (m, T)
     MatrixXd m_rigidModes;  // (3N, k), k ∈ {0,1,2,3}; empty when bundle has no rigid modes
+    VectorXd m_scale;       // (3N,) diagonal normalizer; empty ⇒ s = 1 (unscaled)
 };
 
 

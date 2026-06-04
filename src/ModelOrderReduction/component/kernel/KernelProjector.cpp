@@ -104,14 +104,24 @@ RBFKernel::RBFKernel(double sigma) : m_sigma(sigma)
         throw std::runtime_error("RBFKernel: sigma must be positive");
 }
 
+// Normalize each row i of A by m_scale[i] (z = A ⊘ s). Returns A unchanged
+// when s is empty (unscaled kernel).
+static KernelProjector::MatrixXd zspace(const Eigen::Ref<const KernelProjector::MatrixXd>& A,
+                                        const Eigen::VectorXd& s)
+{
+    if (s.size() == 0) return A;
+    return s.cwiseInverse().asDiagonal() * A;
+}
+
 KernelProjector::MatrixXd
 RBFKernel::kernel_matrix(const Eigen::Ref<const MatrixXd>& U,
                          const Eigen::Ref<const MatrixXd>& V) const
 {
-    // K[i, j] = exp(-||U[:, i] - V[:, j]||² / (2σ²))
-    const Eigen::RowVectorXd sqn_U = U.colwise().squaredNorm();       // (T_U,)
-    const Eigen::RowVectorXd sqn_V = V.colwise().squaredNorm();       // (T_V,)
-    MatrixXd d2 = U.transpose() * V;
+    const MatrixXd Uz = zspace(U, m_scale);
+    const MatrixXd Vz = zspace(V, m_scale);
+    const Eigen::RowVectorXd sqn_U = Uz.colwise().squaredNorm();
+    const Eigen::RowVectorXd sqn_V = Vz.colwise().squaredNorm();
+    MatrixXd d2 = Uz.transpose() * Vz;
     d2 *= -2.0;
     d2.colwise() += sqn_U.transpose();
     d2.rowwise() += sqn_V;
@@ -124,13 +134,18 @@ KernelProjector::MatrixXd
 RBFKernel::grad_u(const Eigen::Ref<const VectorXd>& u,
                   const Eigen::Ref<const MatrixXd>& V) const
 {
-    // ∇_u k(u, v_j) = -(u - v_j) · k(u, v_j) / σ²
-    MatrixXd diff = (-V).colwise() + u;                               // (3N, T)
-    const VectorXd d2 = diff.colwise().squaredNorm();                 // (T,)
+    // ∇_u k = -(u - v_j) ⊘ s² · k / σ²,  k from z-space distances.
+    MatrixXd diff = (-V).colwise() + u;                 // (3N, T) physical
+    const MatrixXd zdiff = zspace(diff, m_scale);       // (u - v) ⊘ s
+    const VectorXd d2 = zdiff.colwise().squaredNorm();  // (T,)
     const double inv2sig2 = 1.0 / (2.0 * m_sigma * m_sigma);
-    const VectorXd k = (-d2 * inv2sig2).array().exp();                // (T,)
+    const VectorXd k = (-d2 * inv2sig2).array().exp();  // (T,)
     const double inv_sig2 = 1.0 / (m_sigma * m_sigma);
-    // diff[:, j] *= -k[j] / σ²
+    if (m_scale.size() != 0)
+    {
+        const VectorXd inv_s2 = m_scale.array().square().inverse();
+        diff = inv_s2.asDiagonal() * diff;              // (u - v) ⊘ s²
+    }
     diff.array().rowwise() *= (-k * inv_sig2).transpose().array();
     return diff;
 }
@@ -139,7 +154,9 @@ KernelProjector::MatrixXd
 RBFKernel::apply_Ginv(const Eigen::Ref<const VectorXd>& /*u*/,
                       const Eigen::Ref<const MatrixXd>& X) const
 {
-    return (m_sigma * m_sigma) * X;
+    const double sig2 = m_sigma * m_sigma;
+    if (m_scale.size() == 0) return sig2 * X;
+    return sig2 * (m_scale.array().square().matrix().asDiagonal() * X);
 }
 
 const std::string& RBFKernel::kernelName() const
@@ -207,6 +224,18 @@ std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string
 
     p->setBundleData(std::move(X0), std::move(snapshots_mat),
                      std::move(alpha_mat), std::move(rigid_mat));
+
+    const auto scale_path = (root / "scale.txt").string();
+    if (fs::exists(scale_path))
+    {
+        Eigen::MatrixXd scale_mat = load_matrix(scale_path);  // (3N, 1)
+        if (scale_mat.cols() != 1)
+            throw std::runtime_error("scale.txt must have 1 column");
+        if (scale_mat.rows() != static_cast<Eigen::Index>(p->nbDofs()))
+            throw std::runtime_error("scale.txt rows != 3N");
+        p->setScale(scale_mat.col(0));
+    }
+
     return p;
 }
 
