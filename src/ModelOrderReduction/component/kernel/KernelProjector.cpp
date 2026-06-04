@@ -233,6 +233,8 @@ std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string
             throw std::runtime_error("scale.txt must have 1 column");
         if (scale_mat.rows() != static_cast<Eigen::Index>(p->nbDofs()))
             throw std::runtime_error("scale.txt rows != 3N");
+        if (!(scale_mat.col(0).array() > 0.0).all())
+            throw std::runtime_error("scale.txt entries must be strictly positive");
         p->setScale(scale_mat.col(0));
     }
 
