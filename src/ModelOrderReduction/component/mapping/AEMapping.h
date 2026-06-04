@@ -3,12 +3,13 @@
 *   Autoencoder counterpart of ModelOrderReductionMapping.
 *
 *   Loads an AE bundle (X0, col_std, decoder.ts.pt, optional encoder.ts.pt
-*   and rigid_modes.txt) and uses the latent-space decoder Jacobian J(q)
-*   = ∂Ψ_θ/∂q for apply / applyJ / applyJT.
+*   and rigid_modes.txt) and uses the latent-space decoder Ψ(q) and Jacobian
+*   J(q) = ∂Ψ_θ/∂q for apply / applyJ / applyJT.
 *
-*   apply: incremental decode  u_new = u_old + J(q_old) · Δq.
+*   apply: exact decode  u = X0 + Φ_t q_t + Ψ(q_def).
 *   applyJ:    du = J(q) · dq.
 *   applyJT:   dq = J(q)ᵀ · du.
+*   applyDJT:  optional finite-difference geometric stiffness.
 *
 *   Parallel sibling to KernelPCAMapping; no edits to the kPCA path.
 ******************************************************************************/
@@ -44,6 +45,8 @@ public:
     using typename Parent::InMatrixDeriv;
 
     sofa::core::objectmodel::DataFileName d_aeBundle;
+    Data<double> d_geomEps;
+    Data<std::string> d_decodeMode;
 
 protected:
     AEMapping();
@@ -51,9 +54,9 @@ protected:
 
     std::unique_ptr<sofa::component::kernel::AEProjector> m_projector;
 
-    // Cached previous reduced coordinates for the incremental apply.
-    // Reset to zero in init(); read/written in apply(). When the bundle has
-    // rigid modes (nbRigid > 0), q is partitioned as [q_t (nbRigid); q_def (nbDef)].
+    // Cached reduced coordinates at the current mapping point. Used to build
+    // J(q) lazily and to finite-difference applyDJT. When the bundle has rigid
+    // modes (nbRigid > 0), q is partitioned as [q_t (nbRigid); q_def (nbDef)].
     Eigen::VectorXd m_q_prev;
 
     // Cached translation columns from the bundle (3N × nbRigid). Empty when
@@ -70,6 +73,12 @@ protected:
     bool m_J_dirty = true;
     void ensureJ();
 
+    // Decode mode, cached from d_decodeMode in init(). false (default) = exact
+    // decode u = X0 + Ψ(q); true = incremental u_new = u_old + J(q_old)·Δq
+    // (kPCA-style, drift-prone but robust — fallback when exact decode's
+    // off-manifold curvature inverts elements at high latent dim).
+    bool m_incremental = false;
+
 public:
     void init() override;
     void reset() override;
@@ -80,6 +89,9 @@ public:
                 Data<VecDeriv>& out, const Data<InVecDeriv>& in) override;
     void applyJT(const core::MechanicalParams* mparams,
                  Data<InVecDeriv>& out, const Data<VecDeriv>& in) override;
+    void applyDJT(const core::MechanicalParams* mparams,
+                  core::MultiVecDerivId parentForceId,
+                  core::ConstMultiVecDerivId childForceId) override;
     void applyJT(const core::ConstraintParams* cparams,
                  Data<InMatrixDeriv>& out, const Data<MatrixDeriv>& in) override;
 };
