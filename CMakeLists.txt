@@ -34,6 +34,7 @@ set(HEADER_FILES
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.h
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.h
@@ -46,6 +47,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.h
@@ -56,6 +59,7 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.inl
 
     ${MOR_SRC}/component/kernel/KernelProjector.h
+    ${MOR_SRC}/component/kernel/ResidualKernelProjector.h
     ${MOR_SRC}/component/kernel/PreImageProjector.h
 
     ${MOR_SRC}/component/loader/MatrixLoader.h
@@ -65,6 +69,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.inl
     ${MOR_SRC}/component/mapping/KernelPCAMapping.h
     ${MOR_SRC}/component/mapping/KernelPCAMapping.inl
+    ${MOR_SRC}/component/mapping/ResidualKernelMapping.h
+    ${MOR_SRC}/component/mapping/ResidualKernelMapping.inl
     ${MOR_SRC}/component/mapping/KernelPreImageMapping.h
     ${MOR_SRC}/component/mapping/KernelPreImageMapping.inl
     ${MOR_SRC}/component/mapping/MORContactMapping.h
@@ -82,24 +88,28 @@ set(SOURCE_FILES
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceFieldKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
     ${MOR_SRC}/component/kernel/KernelProjector.cpp
+    ${MOR_SRC}/component/kernel/ResidualKernelProjector.cpp
     ${MOR_SRC}/component/kernel/PreImageProjector.cpp
 
     ${MOR_SRC}/component/loader/MatrixLoader.cpp
 
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.cpp
     ${MOR_SRC}/component/mapping/KernelPCAMapping.cpp
+    ${MOR_SRC}/component/mapping/ResidualKernelMapping.cpp
     ${MOR_SRC}/component/mapping/KernelPreImageMapping.cpp
     ${MOR_SRC}/component/mapping/MORContactMapping.cpp
 
@@ -166,6 +176,10 @@ endif()
 add_executable(KernelProjector_dump tools/KernelProjector_dump.cpp)
 target_link_libraries(KernelProjector_dump ${PROJECT_NAME})
 
+# Standalone parity-test dumper for the residual-kernel decoder.
+add_executable(ResidualKernelProjector_dump tools/ResidualKernelProjector_dump.cpp)
+target_link_libraries(ResidualKernelProjector_dump ${PROJECT_NAME})
+
 # Standalone parity-test dumper for the explicit pre-image head.
 add_executable(PreImageProjector_dump tools/PreImageProjector_dump.cpp)
 target_link_libraries(PreImageProjector_dump ${PROJECT_NAME})
@@ -178,6 +192,10 @@ endif()
 # Standalone parity-test dumper for HyperReducedHelperKPCA.
 add_executable(HyperReducedHelperKPCA_dump tools/HyperReducedHelperKPCA_dump.cpp)
 target_link_libraries(HyperReducedHelperKPCA_dump ${PROJECT_NAME})
+
+# Standalone parity-test dumper for HyperReducedHelperResidualKernel.
+add_executable(HyperReducedHelperResidualKernel_dump tools/HyperReducedHelperResidualKernel_dump.cpp)
+target_link_libraries(HyperReducedHelperResidualKernel_dump ${PROJECT_NAME})
 
 # Config files and install rules for pythons scripts
 find_file(SofaPython3Tools NAMES "SofaPython3/lib/cmake/SofaPython3/SofaPython3Tools.cmake")
