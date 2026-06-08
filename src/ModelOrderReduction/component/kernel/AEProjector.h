@@ -21,6 +21,8 @@
 #pragma once
 #include <ModelOrderReduction/config.h>
 
+#include <ModelOrderReduction/component/kernel/DecoderProjector.h>
+
 #include <Eigen/Core>
 #include <memory>
 #include <string>
@@ -28,7 +30,7 @@
 
 namespace sofa::component::kernel {
 
-class SOFA_MODELORDERREDUCTION_API AEProjector
+class SOFA_MODELORDERREDUCTION_API AEProjector : public DecoderProjector
 {
 public:
     using VectorXd = Eigen::VectorXd;
@@ -39,35 +41,35 @@ public:
 
     /// Load decoder.ts.pt + arch.json + X0.txt + col_std.txt (and optional
     /// encoder.ts.pt + rigid_modes.txt) from `bundle_dir`. Throws on failure.
-    void loadFromBundle(const std::string& bundle_dir);
+    void loadFromBundle(const std::string& bundle_dir) override;
 
     /// u_disp = col_std ⊙ g_θ(q). Shape (3N,).
-    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const;
+    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const override;
 
     /// q_init from u_disp via encoder. Available only when encoder.ts.pt is in
     /// the bundle; throws otherwise. Used at scene init.
-    VectorXd encode(const Eigen::Ref<const VectorXd>& u_disp) const;
+    VectorXd encode(const Eigen::Ref<const VectorXd>& u_disp) const override;
 
     /// J(q) = ∂(col_std ⊙ g_θ)/∂q — full dense (3N, m) Jacobian.
     /// Use applyJ / project_force when you only need a matvec to avoid the
     /// (3N, m) alloc. Stored cache in AEMapping calls this once per step.
-    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const;
+    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const override;
 
     /// J(q) · dq via JVP — shape (3N,).
     VectorXd applyJ(const Eigen::Ref<const VectorXd>& q,
-                    const Eigen::Ref<const VectorXd>& dq) const;
+                    const Eigen::Ref<const VectorXd>& dq) const override;
 
     /// J(q)^T · f via VJP — shape (m,). Mirrors KernelProjector::project_force.
     VectorXd project_force(const Eigen::Ref<const VectorXd>& q,
-                           const Eigen::Ref<const VectorXd>& f) const;
+                           const Eigen::Ref<const VectorXd>& f) const override;
 
     /// Loaded data accessors — match KernelProjector's surface so AEMapping
     /// can mirror KernelPCAMapping verbatim.
     const VectorXd& X0()         const { return m_X0; }
-    const MatrixXd& rigidModes() const { return m_rigidModes; }  // (3N, k), k=0 if absent
-    unsigned nbDofs()  const { return m_nbDofs; }
-    unsigned nbModes() const { return m_nbModes; }
-    unsigned nbRigid() const { return static_cast<unsigned>(m_rigidModes.cols()); }
+    const MatrixXd& rigidModes() const override { return m_rigidModes; }  // (3N, k), k=0 if absent
+    unsigned nbDofs()  const override { return m_nbDofs; }
+    unsigned nbModes() const override { return m_nbModes; }
+    unsigned nbRigid() const override { return static_cast<unsigned>(m_rigidModes.cols()); }
 
     static const std::string& projectorName();   // returns "ae"
 

@@ -2,26 +2,24 @@
 
 #include <ModelOrderReduction/config.h>
 
+#include <ModelOrderReduction/component/kernel/DecoderProjector.h>
+
 #include <Eigen/Core>
 #include <string>
 
 namespace sofa::component::kernel
 {
 
-class SOFA_MODELORDERREDUCTION_API QuadraticManifoldProjector
+class SOFA_MODELORDERREDUCTION_API QuadraticManifoldProjector : public DecoderProjector
 {
 public:
     using VectorXd = Eigen::VectorXd;
     using MatrixXd = Eigen::MatrixXd;
 
-    void loadFromBundle(const std::string& bundleDir);
+    void loadFromBundle(const std::string& bundleDir) override;
 
-    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const;
-    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const;
-    VectorXd applyJ(const Eigen::Ref<const VectorXd>& q,
-                    const Eigen::Ref<const VectorXd>& dq) const;
-    VectorXd project_force(const Eigen::Ref<const VectorXd>& q,
-                           const Eigen::Ref<const VectorXd>& force) const;
+    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const override;
+    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const override;
 
     const VectorXd& mean() const { return m_mean; }
     const VectorXd& rest() const { return m_rest; }
@@ -29,8 +27,8 @@ public:
     const MatrixXd& quadraticBasis() const { return m_quadraticBasis; }
     double ridge() const { return m_ridge; }
 
-    unsigned nbDofs() const { return static_cast<unsigned>(m_mean.size()); }
-    unsigned nbModes() const
+    unsigned nbDofs() const override { return static_cast<unsigned>(m_mean.size()); }
+    unsigned nbModes() const override
     {
         return static_cast<unsigned>(m_linearBasis.cols());
     }

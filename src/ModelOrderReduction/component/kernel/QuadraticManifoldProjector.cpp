@@ -133,25 +133,6 @@ QuadraticManifoldProjector::MatrixXd QuadraticManifoldProjector::J(
     return jacobian;
 }
 
-QuadraticManifoldProjector::VectorXd QuadraticManifoldProjector::applyJ(
-    const Eigen::Ref<const VectorXd>& q,
-    const Eigen::Ref<const VectorXd>& dq) const
-{
-    if (dq.size() != m_linearBasis.cols())
-        throw std::runtime_error("dq size mismatch in quadratic-manifold projector");
-    return J(q) * dq;
-}
-
-QuadraticManifoldProjector::VectorXd QuadraticManifoldProjector::project_force(
-    const Eigen::Ref<const VectorXd>& q,
-    const Eigen::Ref<const VectorXd>& force) const
-{
-    if (force.size() != m_mean.size())
-        throw std::runtime_error(
-            "force size mismatch in quadratic-manifold projector");
-    return J(q).transpose() * force;
-}
-
 const std::string& QuadraticManifoldProjector::projectorName()
 {
     static const std::string name = "quadratic-manifold";

@@ -61,6 +61,7 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.inl
 
+    ${MOR_SRC}/component/kernel/DecoderProjector.h
     ${MOR_SRC}/component/kernel/KernelProjector.h
     ${MOR_SRC}/component/kernel/QuadraticManifoldProjector.h
     ${MOR_SRC}/component/kernel/ResidualKernelProjector.h
@@ -109,6 +110,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
+    ${MOR_SRC}/component/kernel/DecoderProjector.cpp
     ${MOR_SRC}/component/kernel/KernelProjector.cpp
     ${MOR_SRC}/component/kernel/QuadraticManifoldProjector.cpp
     ${MOR_SRC}/component/kernel/ResidualKernelProjector.cpp

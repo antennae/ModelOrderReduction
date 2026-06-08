@@ -142,20 +142,6 @@ ResidualKernelProjector::J(const Eigen::Ref<const VectorXd>& q) const
     return m_primaryBasis + m_residualBasis * (m_krrWeights * dk);
 }
 
-ResidualKernelProjector::VectorXd
-ResidualKernelProjector::applyJ(const Eigen::Ref<const VectorXd>& q,
-                                const Eigen::Ref<const VectorXd>& dq) const
-{
-    return J(q) * dq;
-}
-
-ResidualKernelProjector::VectorXd
-ResidualKernelProjector::project_force(const Eigen::Ref<const VectorXd>& q,
-                                       const Eigen::Ref<const VectorXd>& f) const
-{
-    return J(q).transpose() * f;
-}
-
 const std::string& ResidualKernelProjector::projectorName()
 {
     static const std::string name = "residual-kernel-rbf";

@@ -6,26 +6,24 @@
 
 #include <ModelOrderReduction/config.h>
 
+#include <ModelOrderReduction/component/kernel/DecoderProjector.h>
+
 #include <Eigen/Core>
 #include <string>
 
 namespace sofa::component::kernel
 {
 
-class SOFA_MODELORDERREDUCTION_API ResidualKernelProjector
+class SOFA_MODELORDERREDUCTION_API ResidualKernelProjector : public DecoderProjector
 {
 public:
     using VectorXd = Eigen::VectorXd;
     using MatrixXd = Eigen::MatrixXd;
 
-    void loadFromBundle(const std::string& bundle_dir);
+    void loadFromBundle(const std::string& bundle_dir) override;
 
-    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const;
-    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const;
-    VectorXd applyJ(const Eigen::Ref<const VectorXd>& q,
-                    const Eigen::Ref<const VectorXd>& dq) const;
-    VectorXd project_force(const Eigen::Ref<const VectorXd>& q,
-                           const Eigen::Ref<const VectorXd>& f) const;
+    VectorXd decode(const Eigen::Ref<const VectorXd>& q) const override;
+    MatrixXd J(const Eigen::Ref<const VectorXd>& q) const override;
 
     const VectorXd& mean() const { return m_mean; }
     const VectorXd& rest() const { return m_rest; }
@@ -36,8 +34,8 @@ public:
     double lengthScale() const { return m_lengthScale; }
     double ridge() const { return m_ridge; }
 
-    unsigned nbDofs() const { return static_cast<unsigned>(m_mean.size()); }
-    unsigned nbModes() const { return static_cast<unsigned>(m_primaryBasis.cols()); }
+    unsigned nbDofs() const override { return static_cast<unsigned>(m_mean.size()); }
+    unsigned nbModes() const override { return static_cast<unsigned>(m_primaryBasis.cols()); }
     unsigned nbResidualModes() const { return static_cast<unsigned>(m_residualBasis.cols()); }
     unsigned nbTrain() const { return static_cast<unsigned>(m_trainQ.rows()); }
 
