@@ -33,6 +33,7 @@ set(HEADER_FILES
     ${MOR_SRC}/config.h.in
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.h
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperDecoder.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperQuadraticManifold.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.h
@@ -94,6 +95,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/initModelOrderReduction.cpp
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperDecoder.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperQuadraticManifold.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.cpp
