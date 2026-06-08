@@ -1,7 +1,7 @@
 /******************************************************************************
 *            Model Order Reduction plugin for SOFA                            *
 ******************************************************************************/
-#define SOFA_COMPONENT_MAPPING_RESIDUALKERNELMAPPING_CPP
+#define SOFA_COMPONENT_MAPPING_QUADRATICMANIFOLDMAPPING_CPP
 #include <ModelOrderReduction/component/mapping/QuadraticManifoldMapping.inl>
 #include <sofa/defaulttype/VecTypes.h>
 #include <sofa/core/ObjectFactory.h>

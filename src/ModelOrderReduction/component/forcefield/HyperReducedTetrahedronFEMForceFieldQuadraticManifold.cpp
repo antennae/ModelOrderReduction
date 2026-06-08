@@ -1,7 +1,7 @@
 /******************************************************************************
 *            Model Order Reduction plugin for SOFA                            *
 ******************************************************************************/
-#define SOFA_COMPONENT_FORCEFIELD_HYPERREDUCEDTETRAHEDRONFEMFORCEFIELDRESIDUALKERNEL_CPP
+#define SOFA_COMPONENT_FORCEFIELD_HYPERREDUCEDTETRAHEDRONFEMFORCEFIELDQUADRATICMANIFOLD_CPP
 #include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.inl>
 #include <sofa/defaulttype/VecTypes.h>
 #include <sofa/core/ObjectFactory.h>

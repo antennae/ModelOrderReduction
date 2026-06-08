@@ -21,7 +21,7 @@
 #include <sofa/defaulttype/VecTypes.h>
 
 #define SIMPLEFEM_COLORMAP
-#define SOFAHYPERREDUCEDTETRAHEDRONFEMFORCEFIELDRESIDUALKERNEL_COLORMAP
+#define SOFAHYPERREDUCEDTETRAHEDRONFEMFORCEFIELDQUADRATICMANIFOLD_COLORMAP
 
 #include <sofa/helper/ColorMap.h>
 
@@ -130,7 +130,7 @@ protected:
     void applyStiffnessCorotational( Vector& f, const Vector& x, int i=0, Index a=0,Index b=1,Index c=2,Index d=3, SReal fact=1.0  );
 };
 
-#if !defined(SOFA_COMPONENT_FORCEFIELD_HYPERREDUCEDTETRAHEDRONFEMFORCEFIELDRESIDUALKERNEL_CPP)
+#if !defined(SOFA_COMPONENT_FORCEFIELD_HYPERREDUCEDTETRAHEDRONFEMFORCEFIELDQUADRATICMANIFOLD_CPP)
 extern template class SOFA_MODELORDERREDUCTION_API HyperReducedTetrahedronFEMForceFieldQuadraticManifold<defaulttype::Vec3Types>;
 #endif
 } // namespace sofa::component::forcefield

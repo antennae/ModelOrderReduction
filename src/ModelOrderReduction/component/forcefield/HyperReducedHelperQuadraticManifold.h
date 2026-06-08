@@ -1,6 +1,6 @@
 /******************************************************************************
 *            Model Order Reduction plugin for SOFA                            *
-*   Residual-kernel hyperreduction helper.                                    *
+*   Quadratic-manifold hyperreduction helper.                                *
 ******************************************************************************/
 #pragma once
 #include <ModelOrderReduction/config.h>

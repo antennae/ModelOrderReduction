@@ -60,7 +60,7 @@ public:
                  Data<InMatrixDeriv>& out, const Data<MatrixDeriv>& in) override;
 };
 
-#if !defined(SOFA_COMPONENT_MAPPING_RESIDUALKERNELMAPPING_CPP)
+#if !defined(SOFA_COMPONENT_MAPPING_QUADRATICMANIFOLDMAPPING_CPP)
 extern template class SOFA_MODELORDERREDUCTION_API
     QuadraticManifoldMapping<sofa::defaulttype::Vec1Types, sofa::defaulttype::Vec3Types>;
 #endif
