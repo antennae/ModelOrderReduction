@@ -59,6 +59,7 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.inl
 
     ${MOR_SRC}/component/kernel/KernelProjector.h
+    ${MOR_SRC}/component/kernel/QuadraticManifoldProjector.h
     ${MOR_SRC}/component/kernel/ResidualKernelProjector.h
     ${MOR_SRC}/component/kernel/PreImageProjector.h
 
@@ -102,6 +103,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
     ${MOR_SRC}/component/kernel/KernelProjector.cpp
+    ${MOR_SRC}/component/kernel/QuadraticManifoldProjector.cpp
     ${MOR_SRC}/component/kernel/ResidualKernelProjector.cpp
     ${MOR_SRC}/component/kernel/PreImageProjector.cpp
 
@@ -179,6 +181,10 @@ target_link_libraries(KernelProjector_dump ${PROJECT_NAME})
 # Standalone parity-test dumper for the residual-kernel decoder.
 add_executable(ResidualKernelProjector_dump tools/ResidualKernelProjector_dump.cpp)
 target_link_libraries(ResidualKernelProjector_dump ${PROJECT_NAME})
+
+# Standalone parity-test dumper for the quadratic-manifold decoder.
+add_executable(QuadraticManifoldProjector_dump tools/QuadraticManifoldProjector_dump.cpp)
+target_link_libraries(QuadraticManifoldProjector_dump ${PROJECT_NAME})
 
 # Standalone parity-test dumper for the explicit pre-image head.
 add_executable(PreImageProjector_dump tools/PreImageProjector_dump.cpp)
