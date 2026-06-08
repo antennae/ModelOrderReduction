@@ -39,6 +39,7 @@ namespace sofa::component::forcefield
     extern void registerHyperReducedTetrahedronHyperelasticityFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceField(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
+    extern void registerHyperReducedTetrahedronFEMForceFieldQuadraticManifold(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceFieldResidualKernel(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTriangleFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
@@ -53,6 +54,7 @@ namespace sofa::component::mapping
     extern void registerMORContactMapping(sofa::core::ObjectFactory* factory);
     extern void registerModelOrderReductionMapping(sofa::core::ObjectFactory* factory);
     extern void registerKernelPCAMapping(sofa::core::ObjectFactory* factory);
+    extern void registerQuadraticManifoldMapping(sofa::core::ObjectFactory* factory);
     extern void registerResidualKernelMapping(sofa::core::ObjectFactory* factory);
     extern void registerKernelPreImageMapping(sofa::core::ObjectFactory* factory);
 #ifdef SOFA_BUILD_AUTOENCODER
@@ -119,6 +121,7 @@ void registerObjects(sofa::core::ObjectFactory* factory)
     sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceField(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldKPCA(factory);
+    sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldQuadraticManifold(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldResidualKernel(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA(factory);
     sofa::component::forcefield::registerHyperReducedTriangleFEMForceFieldKPCA(factory);
@@ -131,6 +134,7 @@ void registerObjects(sofa::core::ObjectFactory* factory)
     sofa::component::mapping::registerMORContactMapping(factory);
     sofa::component::mapping::registerModelOrderReductionMapping(factory);
     sofa::component::mapping::registerKernelPCAMapping(factory);
+    sofa::component::mapping::registerQuadraticManifoldMapping(factory);
     sofa::component::mapping::registerResidualKernelMapping(factory);
     sofa::component::mapping::registerKernelPreImageMapping(factory);
 #ifdef SOFA_BUILD_AUTOENCODER

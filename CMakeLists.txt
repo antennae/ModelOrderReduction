@@ -34,6 +34,7 @@ set(HEADER_FILES
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.h
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperQuadraticManifold.h
     ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.inl
@@ -47,6 +48,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.h
@@ -70,6 +73,8 @@ set(HEADER_FILES
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.inl
     ${MOR_SRC}/component/mapping/KernelPCAMapping.h
     ${MOR_SRC}/component/mapping/KernelPCAMapping.inl
+    ${MOR_SRC}/component/mapping/QuadraticManifoldMapping.h
+    ${MOR_SRC}/component/mapping/QuadraticManifoldMapping.inl
     ${MOR_SRC}/component/mapping/ResidualKernelMapping.h
     ${MOR_SRC}/component/mapping/ResidualKernelMapping.inl
     ${MOR_SRC}/component/mapping/KernelPreImageMapping.h
@@ -89,6 +94,7 @@ set(SOURCE_FILES
 
     ${MOR_SRC}/component/forcefield/HyperReducedHelper.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperKPCA.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedHelperQuadraticManifold.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHelperResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedHexahedronFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedRestShapeSpringsForceField.cpp
@@ -96,6 +102,7 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.cpp
@@ -111,6 +118,7 @@ set(SOURCE_FILES
 
     ${MOR_SRC}/component/mapping/ModelOrderReductionMapping.cpp
     ${MOR_SRC}/component/mapping/KernelPCAMapping.cpp
+    ${MOR_SRC}/component/mapping/QuadraticManifoldMapping.cpp
     ${MOR_SRC}/component/mapping/ResidualKernelMapping.cpp
     ${MOR_SRC}/component/mapping/KernelPreImageMapping.cpp
     ${MOR_SRC}/component/mapping/MORContactMapping.cpp
@@ -202,6 +210,10 @@ target_link_libraries(HyperReducedHelperKPCA_dump ${PROJECT_NAME})
 # Standalone parity-test dumper for HyperReducedHelperResidualKernel.
 add_executable(HyperReducedHelperResidualKernel_dump tools/HyperReducedHelperResidualKernel_dump.cpp)
 target_link_libraries(HyperReducedHelperResidualKernel_dump ${PROJECT_NAME})
+
+# Standalone parity-test dumper for HyperReducedHelperQuadraticManifold.
+add_executable(HyperReducedHelperQuadraticManifold_dump tools/HyperReducedHelperQuadraticManifold_dump.cpp)
+target_link_libraries(HyperReducedHelperQuadraticManifold_dump ${PROJECT_NAME})
 
 # Config files and install rules for pythons scripts
 find_file(SofaPython3Tools NAMES "SofaPython3/lib/cmake/SofaPython3/SofaPython3Tools.cmake")
