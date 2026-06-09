@@ -1,3 +1,7 @@
+/******************************************************************************
+*            Model Order Reduction plugin for SOFA                            *
+*                         quadratic-manifold decoder primitives               *
+******************************************************************************/
 #pragma once
 
 #include <ModelOrderReduction/config.h>
