@@ -8,7 +8,7 @@ namespace modelorderreduction
 
 HyperReducedHelperQuadraticManifold::HyperReducedHelperQuadraticManifold()
     : d_quadraticManifoldBundle(initData(&d_quadraticManifoldBundle,
-          std::string("residual_kernel"), "quadraticManifoldBundle",
+          std::string("quadratic_manifold"), "quadraticManifoldBundle",
           "Path to quadratic-manifold bundle directory"))
 {
     d_quadraticManifoldBundle.setGroup("HyperReduction");
