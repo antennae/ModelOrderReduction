@@ -199,6 +199,15 @@ std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string
             throw std::runtime_error("RBF bundle missing sigma in kernel.txt");
         p = std::make_unique<RBFKernel>(it->second);
     }
+    else if (spec.type == "frozen")
+    {
+        // Frozen kernel-PCA decoder (Phase D3): the bundle stores the RBF
+        // kernel-PCA subspace (α from the RBF Gram), but the runtime decodes
+        // with the constant linear operator J = D·αᵀ (no online ∇k). The
+        // operator is exactly LinearKernel; σ/scale in the bundle are RBF-fit
+        // provenance and are ignored here.
+        p = std::make_unique<LinearKernel>();
+    }
     else
     {
         throw std::runtime_error("unknown kernel type: " + spec.type);
