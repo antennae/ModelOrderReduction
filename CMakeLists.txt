@@ -47,6 +47,7 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedralCorotationalFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceField.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldGuard.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldKPCA.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.h

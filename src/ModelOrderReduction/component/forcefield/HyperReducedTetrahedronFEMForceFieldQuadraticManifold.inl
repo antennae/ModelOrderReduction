@@ -6,6 +6,7 @@
 
 #include "sofa/core/behavior/BaseLocalForceFieldMatrix.h"
 #include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceFieldQuadraticManifold.h>
+#include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceFieldGuard.h>
 #include <sofa/core/objectmodel/BaseNode.h>
 #include <sofa/core/visual/VisualParams.h>
 #include <sofa/component/topology/container/grid/GridTopology.h>
@@ -291,6 +292,15 @@ template <class DataTypes>
 void HyperReducedTetrahedronFEMForceFieldQuadraticManifold<DataTypes>::init()
 {
     TetrahedronFEMForceField<DataTypes>::init();
+    if (!isECSWPreparationMethodSupported(
+            this->d_prepareECSW.getValue(), this->method, LARGE))
+    {
+        msg_error(this) << "prepareECSW requires method='large'; got method='"
+                        << this->d_method.getValue() << "'.";
+        this->d_componentState.setValue(ComponentState::Invalid);
+        return;
+    }
+
     this->initMOR(this->_indexedElements->size(), notMuted());
 
     // The latent Vec1d state is only read during Gie collection (prepareECSW);

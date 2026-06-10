@@ -18,6 +18,7 @@
 
 #include "sofa/core/behavior/BaseLocalForceFieldMatrix.h"
 #include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceField.h>
+#include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceFieldGuard.h>
 #include <sofa/core/visual/VisualParams.h>
 #include <sofa/component/topology/container/grid/GridTopology.h>
 #include <sofa/simulation/Simulation.h>
@@ -305,6 +306,15 @@ template <class DataTypes>
 void HyperReducedTetrahedronFEMForceField<DataTypes>::init()
 {
     TetrahedronFEMForceField<DataTypes>::init();
+    if (!isECSWPreparationMethodSupported(
+            this->d_prepareECSW.getValue(), this->method, LARGE))
+    {
+        msg_error(this) << "prepareECSW requires method='large'; got method='"
+                        << this->d_method.getValue() << "'.";
+        this->d_componentState.setValue(ComponentState::Invalid);
+        return;
+    }
+
     this->initMOR(this->_indexedElements->size(),notMuted());
 }
 

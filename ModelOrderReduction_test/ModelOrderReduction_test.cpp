@@ -1,6 +1,8 @@
 #include <sofa/testing/BaseSimulationTest.h>
 #include <sofa/simulation/graph/DAGSimulation.h>
 
+#include <ModelOrderReduction/component/forcefield/HyperReducedTetrahedronFEMForceFieldGuard.h>
+
 namespace sofa {
 
     using namespace defaulttype;
@@ -59,5 +61,16 @@ namespace sofa {
     TYPED_TEST( ModelOrderReduction_test , SmallCorotationalPatchTest)
     {
         ASSERT_TRUE( this->testSomething() );
+    }
+
+    TEST(HyperReducedTetrahedronFEMForceFieldGuard, PreparationOnlySupportsLargeMethod)
+    {
+        using sofa::component::forcefield::isECSWPreparationMethodSupported;
+
+        EXPECT_TRUE(isECSWPreparationMethodSupported(false, 0, 1));
+        EXPECT_TRUE(isECSWPreparationMethodSupported(true, 1, 1));
+        EXPECT_FALSE(isECSWPreparationMethodSupported(true, 0, 1));
+        EXPECT_FALSE(isECSWPreparationMethodSupported(true, 2, 1));
+        EXPECT_FALSE(isECSWPreparationMethodSupported(true, 3, 1));
     }
 }
