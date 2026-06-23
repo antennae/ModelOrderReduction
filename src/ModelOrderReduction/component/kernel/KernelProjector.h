@@ -9,6 +9,7 @@
 #include <Eigen/Core>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace sofa {
 namespace component {
@@ -155,6 +156,26 @@ public:
 
 private:
     double m_sigma;
+};
+
+
+/** Uniform/weighted sum of RBF kernels at several bandwidths, shared scale.
+ *  k = Σ_ℓ β_ℓ exp(-‖z‖²/2σ_ℓ²);  G⁻¹ = c·s²,  c = 1/Σ_ℓ β_ℓ/σ_ℓ². */
+class SOFA_MODELORDERREDUCTION_API MixedRBFKernel : public KernelProjector
+{
+public:
+    MixedRBFKernel(std::vector<double> sigmas, std::vector<double> betas);
+    MatrixXd kernel_matrix(const Eigen::Ref<const MatrixXd>& U,
+                           const Eigen::Ref<const MatrixXd>& V) const override;
+    MatrixXd grad_u(const Eigen::Ref<const VectorXd>& u,
+                    const Eigen::Ref<const MatrixXd>& V) const override;
+    MatrixXd apply_Ginv(const Eigen::Ref<const VectorXd>& u,
+                        const Eigen::Ref<const MatrixXd>& X) const override;
+    const std::string& kernelName() const override;
+private:
+    std::vector<double> m_sigmas;
+    std::vector<double> m_betas;   // normalized to sum 1
+    double m_ginvC;
 };
 
 

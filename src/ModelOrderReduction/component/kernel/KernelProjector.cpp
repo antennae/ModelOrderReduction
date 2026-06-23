@@ -13,6 +13,7 @@
 #include <map>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace sofa {
 namespace component {
@@ -166,6 +167,67 @@ const std::string& RBFKernel::kernelName() const
 }
 
 
+// ---------------- MixedRBFKernel ----------------
+MixedRBFKernel::MixedRBFKernel(std::vector<double> sigmas, std::vector<double> betas)
+    : m_sigmas(std::move(sigmas)), m_betas(std::move(betas))
+{
+    if (m_sigmas.empty() || m_sigmas.size() != m_betas.size())
+        throw std::runtime_error("MixedRBFKernel: sigmas/betas size mismatch");
+    double bsum = 0.0, c = 0.0;
+    for (double s : m_sigmas) if (!(s > 0.0)) throw std::runtime_error("MixedRBFKernel: sigma>0");
+    for (double b : m_betas) bsum += b;
+    for (double& b : m_betas) b /= bsum;
+    for (std::size_t l = 0; l < m_sigmas.size(); ++l) c += m_betas[l] / (m_sigmas[l] * m_sigmas[l]);
+    m_ginvC = 1.0 / c;
+}
+
+KernelProjector::MatrixXd
+MixedRBFKernel::kernel_matrix(const Eigen::Ref<const MatrixXd>& U,
+                              const Eigen::Ref<const MatrixXd>& V) const
+{
+    const MatrixXd Uz = zspace(U, m_scale), Vz = zspace(V, m_scale);
+    const Eigen::RowVectorXd sqU = Uz.colwise().squaredNorm();
+    const Eigen::RowVectorXd sqV = Vz.colwise().squaredNorm();
+    MatrixXd d2 = Uz.transpose() * Vz; d2 *= -2.0;
+    d2.colwise() += sqU.transpose(); d2.rowwise() += sqV; d2 = d2.cwiseMax(0.0);
+    MatrixXd K = MatrixXd::Zero(U.cols(), V.cols());
+    for (std::size_t l = 0; l < m_sigmas.size(); ++l)
+        K += m_betas[l] * (-d2 / (2.0 * m_sigmas[l] * m_sigmas[l])).array().exp().matrix();
+    return K;
+}
+
+KernelProjector::MatrixXd
+MixedRBFKernel::grad_u(const Eigen::Ref<const VectorXd>& u,
+                       const Eigen::Ref<const MatrixXd>& V) const
+{
+    MatrixXd diff = (-V).colwise() + u;               // (3N, T) physical
+    const MatrixXd zdiff = zspace(diff, m_scale);
+    const VectorXd d2 = zdiff.colwise().squaredNorm(); // (T,)
+    VectorXd w = VectorXd::Zero(V.cols());             // Σ_ℓ β_ℓ k_ℓ / σ_ℓ²
+    for (std::size_t l = 0; l < m_sigmas.size(); ++l) {
+        const double s2 = m_sigmas[l] * m_sigmas[l];
+        w += (m_betas[l] / s2) * (-d2 / (2.0 * s2)).array().exp().matrix();
+    }
+    if (m_scale.size() != 0)
+        diff = m_scale.array().square().inverse().matrix().asDiagonal() * diff;
+    diff.array().rowwise() *= (-w).transpose().array();
+    return diff;
+}
+
+KernelProjector::MatrixXd
+MixedRBFKernel::apply_Ginv(const Eigen::Ref<const VectorXd>&,
+                           const Eigen::Ref<const MatrixXd>& X) const
+{
+    if (m_scale.size() == 0) return m_ginvC * X;
+    return m_ginvC * (m_scale.array().square().matrix().asDiagonal() * X);
+}
+
+const std::string& MixedRBFKernel::kernelName() const
+{
+    static const std::string n = "mixed-rbf"; return n;
+}
+
+
 // ---------------- Factory ----------------
 
 std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string& bundle_dir)
@@ -207,6 +269,19 @@ std::unique_ptr<KernelProjector> loadKernelProjectorFromBundle(const std::string
         // operator is exactly LinearKernel; σ/scale in the bundle are RBF-fit
         // provenance and are ignored here.
         p = std::make_unique<LinearKernel>();
+    }
+    else if (spec.type == "mixed-rbf")
+    {
+        auto it = spec.params.find("n_kernels");
+        if (it == spec.params.end())
+            throw std::runtime_error("mixed-rbf bundle missing n_kernels");
+        const int nk = static_cast<int>(it->second);
+        std::vector<double> sig, bet;
+        for (int i = 0; i < nk; ++i) {
+            sig.push_back(spec.params.at("sigma_" + std::to_string(i)));
+            bet.push_back(spec.params.at("beta_" + std::to_string(i)));
+        }
+        p = std::make_unique<MixedRBFKernel>(std::move(sig), std::move(bet));
     }
     else
     {
