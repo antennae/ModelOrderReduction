@@ -176,6 +176,7 @@ MixedRBFKernel::MixedRBFKernel(std::vector<double> sigmas, std::vector<double> b
     double bsum = 0.0, c = 0.0;
     for (double s : m_sigmas) if (!(s > 0.0)) throw std::runtime_error("MixedRBFKernel: sigma>0");
     for (double b : m_betas) bsum += b;
+    if (!(bsum > 0.0)) throw std::runtime_error("MixedRBFKernel: betas must sum to a positive value");
     for (double& b : m_betas) b /= bsum;
     for (std::size_t l = 0; l < m_sigmas.size(); ++l) c += m_betas[l] / (m_sigmas[l] * m_sigmas[l]);
     m_ginvC = 1.0 / c;
