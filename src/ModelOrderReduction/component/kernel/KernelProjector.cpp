@@ -8,6 +8,7 @@
 #include <sofa/helper/logging/Messaging.h>
 
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -174,8 +175,10 @@ MixedRBFKernel::MixedRBFKernel(std::vector<double> sigmas, std::vector<double> b
     if (m_sigmas.empty() || m_sigmas.size() != m_betas.size())
         throw std::runtime_error("MixedRBFKernel: sigmas/betas size mismatch");
     double bsum = 0.0, c = 0.0;
-    for (double s : m_sigmas) if (!(s > 0.0)) throw std::runtime_error("MixedRBFKernel: sigma>0");
-    for (double b : m_betas) bsum += b;
+    for (double s : m_sigmas) if (!std::isfinite(s) || !(s > 0.0)) throw std::runtime_error("MixedRBFKernel: all sigmas must be finite and > 0");
+    // Non-negative β keeps the kernel PSD and the OPR metric Σβ/σ²>0; a negative
+    // weight silently yields an indefinite Gram and a sign-flipped G⁻¹ scale.
+    for (double b : m_betas) { if (!std::isfinite(b) || b < 0.0) throw std::runtime_error("MixedRBFKernel: all betas must be finite and >= 0"); bsum += b; }
     if (!(bsum > 0.0)) throw std::runtime_error("MixedRBFKernel: betas must sum to a positive value");
     for (double& b : m_betas) b /= bsum;
     for (std::size_t l = 0; l < m_sigmas.size(); ++l) c += m_betas[l] / (m_sigmas[l] * m_sigmas[l]);
