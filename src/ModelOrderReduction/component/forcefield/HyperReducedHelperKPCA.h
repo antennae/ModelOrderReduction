@@ -68,7 +68,8 @@ public:
 
     // Per-frame cache — refreshed by prepareFrame(u), consumed by updateGie.
     Eigen::MatrixXd m_grad_all;   // (3N, T)  grad_u(u, snapshots)
-    double m_sigma2 = 1.0;        // cached G^{-1} scalar for RBF / linear
+    Eigen::VectorXd m_ginv_diag;  // (3N,) diagonal of G^{-1}, constant in u;
+                                  // pulled from the projector's apply_Ginv at init
     bool m_frameReady = false;
 
     // Resolved from d_indexMap at init. Empty -> legacy direct-index path.
@@ -116,12 +117,6 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
     const unsigned T = m_projector->nbSnapshots();
     const unsigned mDef = m_projector->nbModes();
 
-    // G^{-1}·contrib — element-local. G^{-1} = σ²·I for both linear (σ²=1) and RBF.
-    Eigen::VectorXd Ginv_contrib(3 * V);
-    for (unsigned i = 0; i < V; ++i)
-        for (unsigned c = 0; c < 3; ++c)
-            Ginv_contrib(3 * i + c) = m_sigma2 * contrib[i][c];
-
     // Resolve each element vertex's index into the bundle's deformable dof
     // list. MORreplaceKPCA populates the map at scene build: Rigidify cross-
     // parent gets the SubsetMultiMapping-derived map (rigid verts -> -1),
@@ -137,6 +132,22 @@ Eigen::VectorXd HyperReducedHelperKPCA::projectOneElement(
                 " exceeds indexMap size " +
                 std::to_string(m_indexMap.size()) + ".");
         defIdx[i] = m_indexMap(indexList[i]);  // -1 marks a rigid vertex
+    }
+
+    // G^{-1}·contrib — element-local, using the projector's diagonal G^{-1} at
+    // each vertex's deformable dof (m_ginv_diag, indexed by bundle dof). Rigid
+    // vertices (defIdx < 0) are skipped in the t-sum below, so their slot is 0.
+    Eigen::VectorXd Ginv_contrib(3 * V);
+    for (unsigned i = 0; i < V; ++i)
+    {
+        if (defIdx[i] < 0)
+        {
+            Ginv_contrib.segment(3 * i, 3).setZero();
+            continue;
+        }
+        const unsigned dof0 = 3 * static_cast<unsigned>(defIdx[i]);
+        for (unsigned c = 0; c < 3; ++c)
+            Ginv_contrib(3 * i + c) = m_ginv_diag(dof0 + c) * contrib[i][c];
     }
 
     // t_j = grad_j[elem_dofs] · Ginv_contrib  — (T,)

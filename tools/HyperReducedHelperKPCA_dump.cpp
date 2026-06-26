@@ -15,9 +15,11 @@
 *      then nbRows rows of whitespace-separated floats (or ints for indices)
 ******************************************************************************/
 #include <ModelOrderReduction/component/forcefield/HyperReducedHelperKPCA.h>
+#include <ModelOrderReduction/component/kernel/KernelProjector.h>
 #include <ModelOrderReduction/component/loader/MatrixLoader.inl>
 
 #include <sofa/defaulttype/VecTypes.h>
+#include <sofa/type/vector.h>
 
 #include <Eigen/Core>
 #include <fstream>
@@ -77,6 +79,17 @@ int main(int argc, char** argv)
     helper.d_kernelBundle.setValue(argv[1]);
     helper.d_nbTrainingSet.setValue(1);  // any nonzero — we only exercise projectOneElement
     helper.d_periodSaveGIE.setValue(1);
+
+    // Identity FF-mstate -> bundle-deformable index map (single-mstate test
+    // bundles cover every vertex 1:1). initMOR requires a non-empty map.
+    {
+        auto probe = sofa::component::kernel::loadKernelProjectorFromBundle(argv[1]);
+        const unsigned nbVerts = probe->nbDofs() / 3;
+        sofa::type::vector<int> idmap(nbVerts);
+        for (unsigned i = 0; i < nbVerts; ++i)
+            idmap[i] = static_cast<int>(i);
+        helper.d_indexMap.setValue(idmap);
+    }
 
     // nbElements = 1 (a single fake element).
     helper.initMOR(1u, /*printLog*/ false);

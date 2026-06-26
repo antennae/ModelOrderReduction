@@ -15,7 +15,6 @@ namespace modelorderreduction
 
 using sofa::component::loader::MatrixLoader;
 using sofa::component::kernel::KernelProjector;
-using sofa::component::kernel::RBFKernel;
 
 HyperReducedHelperKPCA::HyperReducedHelperKPCA()
     : d_prepareECSW(initData(&d_prepareECSW, false, "prepareECSW",
@@ -61,11 +60,16 @@ void HyperReducedHelperKPCA::initMOR(unsigned nbElements, bool printLog)
         m_nbModes = m_projector->nbModes() + m_nbRigid;
         m_PhiT    = m_projector->rigidModes();   // (3N, nbRigid); empty if 0
 
-        // σ² is the G^{-1} scalar (linear kernel leaves σ² = 1).
-        if (auto* rbf = dynamic_cast<const RBFKernel*>(m_projector.get()))
-            m_sigma2 = rbf->sigma() * rbf->sigma();
-        else
-            m_sigma2 = 1.0;
+        // G^{-1} is diagonal and constant in u for every helper-supported kernel
+        // (linear I, RBF σ²·s², mixed c·s²). Pull the diagonal straight from the
+        // projector's own apply_Ginv (apply to 𝟙 ⇒ the diagonal entries) instead
+        // of duplicating a per-kernel scalar — the old σ²-only shortcut dropped
+        // scale² for normalized RBF and could not represent the mixed bank's
+        // c = 1/Σ(β/σ²) (2026-06-24 review, Finding 1).
+        const unsigned n3 = m_projector->nbDofs();
+        m_ginv_diag = m_projector
+                          ->apply_Ginv(m_projector->X0(), Eigen::VectorXd::Ones(n3))
+                          .col(0);
 
         if (printLog)
             msg_info("HyperReducedHelperKPCA")
