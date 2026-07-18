@@ -42,6 +42,8 @@ namespace sofa::component::forcefield
     extern void registerHyperReducedTetrahedronFEMForceFieldQuadraticManifold(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronFEMForceFieldResidualKernel(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
+    extern void registerHyperReducedTetrahedronHyperelasticityFEMForceFieldQuadraticManifold(sofa::core::ObjectFactory* factory);
+    extern void registerHyperReducedTetrahedronHyperelasticityFEMForceFieldResidualKernel(sofa::core::ObjectFactory* factory);
     extern void registerHyperReducedTriangleFEMForceFieldKPCA(sofa::core::ObjectFactory* factory);
 #ifdef SOFA_BUILD_AUTOENCODER
     extern void registerHyperReducedTetrahedronFEMForceFieldAE(sofa::core::ObjectFactory* factory);
@@ -124,6 +126,8 @@ void registerObjects(sofa::core::ObjectFactory* factory)
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldQuadraticManifold(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldResidualKernel(factory);
     sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA(factory);
+    sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceFieldQuadraticManifold(factory);
+    sofa::component::forcefield::registerHyperReducedTetrahedronHyperelasticityFEMForceFieldResidualKernel(factory);
     sofa::component::forcefield::registerHyperReducedTriangleFEMForceFieldKPCA(factory);
 #ifdef SOFA_BUILD_AUTOENCODER
     sofa::component::forcefield::registerHyperReducedTetrahedronFEMForceFieldAE(factory);

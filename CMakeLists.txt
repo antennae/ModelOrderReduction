@@ -58,6 +58,10 @@ set(HEADER_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.h
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldQuadraticManifold.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldQuadraticManifold.inl
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldResidualKernel.h
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldResidualKernel.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.h
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.inl
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.h
@@ -110,6 +114,8 @@ set(SOURCE_FILES
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronFEMForceFieldResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldKPCA.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldQuadraticManifold.cpp
+    ${MOR_SRC}/component/forcefield/HyperReducedTetrahedronHyperelasticityFEMForceFieldResidualKernel.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceField.cpp
     ${MOR_SRC}/component/forcefield/HyperReducedTriangleFEMForceFieldKPCA.cpp
 
