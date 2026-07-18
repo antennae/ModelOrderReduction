@@ -165,6 +165,8 @@ class SOFA_MODELORDERREDUCTION_API MixedRBFKernel : public KernelProjector
 {
 public:
     MixedRBFKernel(std::vector<double> sigmas, std::vector<double> betas);
+    const std::vector<double>& sigmas() const { return m_sigmas; }
+    const std::vector<double>& betas() const { return m_betas; }
     MatrixXd kernel_matrix(const Eigen::Ref<const MatrixXd>& U,
                            const Eigen::Ref<const MatrixXd>& V) const override;
     MatrixXd grad_u(const Eigen::Ref<const VectorXd>& u,

@@ -62,25 +62,66 @@ PreImageProjector::PreImageProjector(std::unique_ptr<KernelProjector> kernel,
     , m_eta(eta), m_eta_t(eta_t)
     , m_r(r), m_maxIter(maxIter), m_tol(tol)
 {
-    auto* rbf = dynamic_cast<RBFKernel*>(m_kernel.get());
-    if (!rbf)
-        throw std::runtime_error("PreImageProjector: kernel must be RBF "
-                                 "(pre-image fixed point is RBF-only)");
-    m_sigma = rbf->sigma();
+    if (auto* rbf = dynamic_cast<RBFKernel*>(m_kernel.get()))
+    {
+        m_sigmas.assign(1, rbf->sigma());
+        m_betas.assign(1, 1.0);
+    }
+    else if (auto* mixed = dynamic_cast<MixedRBFKernel*>(m_kernel.get()))
+    {
+        m_sigmas = mixed->sigmas();
+        m_betas = mixed->betas();
+    }
+    else
+    {
+        throw std::runtime_error(
+            "PreImageProjector: fixed point requires RBF or mixed-rbf kernel");
+    }
 
     const MatrixXd& D = m_kernel->snapshots();   // (3N, T)
     const MatrixXd& A = m_kernel->alpha();        // (m, T)
     if (m_M.size() != D.rows())
         throw std::runtime_error("PreImageProjector: mass_diagonal length != 3N");
+    if (m_kernel->scale().size() == 0)
+        m_invScale2 = VectorXd::Ones(D.rows());
+    else
+    {
+        if (m_kernel->scale().size() != D.rows())
+            throw std::runtime_error("PreImageProjector: kernel scale length != 3N");
+        m_invScale2 = m_kernel->scale().array().square().inverse().matrix();
+    }
 
     m_Jinit = D * A.transpose();                  // (3N, m)
     m_mean  = D.rowwise().mean();                 // (3N,)
+    rebuildFixedBasis();
 }
 
 void PreImageProjector::setRegularization(double eta, double eta_t)
 {
     if (eta   >= 0.0) m_eta   = eta;
     if (eta_t >= 0.0) m_eta_t = eta_t;
+}
+
+void PreImageProjector::setLocalRank(int r)
+{
+    if (r > 0 && r != m_r)
+    {
+        m_r = r;
+        rebuildFixedBasis();
+    }
+}
+
+void PreImageProjector::rebuildFixedBasis()
+{
+    MatrixXd centered = m_kernel->snapshots().colwise() - m_mean;
+    Eigen::JacobiSVD<MatrixXd> podSvd(centered, Eigen::ComputeThinU);
+    const VectorXd& singular = podSvd.singularValues();
+    const double s0 = singular.size() ? singular(0) : 1.0;
+    int numericalRank = 0;
+    for (Eigen::Index i = 0; i < singular.size(); ++i)
+        if (singular(i) > 1e-10 * s0) ++numericalRank;
+    const int keep = std::min(m_r, numericalRank);
+    m_fixedBasis = augmentWithBaseline(podSvd.matrixU().leftCols(keep));
 }
 
 PreImageProjector::VectorXd
@@ -130,17 +171,25 @@ PreImageProjector::reducedHessian(const Eigen::Ref<const VectorXd>& u,
                                   const Eigen::Ref<const VectorXd>& q,
                                   const Eigen::Ref<const MatrixXd>& W) const
 {
-    const double s2 = m_sigma * m_sigma;
     const MatrixXd& D = m_kernel->snapshots();                         // (3N, T)
     MatrixXd diff = (-D).colwise() + u;                                // (3N, T)
-    const VectorXd d2 = diff.colwise().squaredNorm();                  // (T,)
-    const VectorXd kj = (-d2 / (2.0 * s2)).array().exp();              // (T,)
-    const VectorXd w  = beta(q).cwiseProduct(kj);                      // (T,)
-
-    const MatrixXd Wd = W.transpose() * diff;                          // (r, T)
-    MatrixXd H = (w.sum() / s2) * (W.transpose() * W);
-    const MatrixXd Wd_scaled = Wd * (w / s2).asDiagonal();             // (r, T)
-    H.noalias() -= (Wd_scaled * Wd.transpose()) / s2;
+    const MatrixXd metricDiff = m_invScale2.asDiagonal() * diff;
+    const VectorXd d2 = (diff.array() * metricDiff.array()).colwise().sum();
+    const MatrixXd Wd = W.transpose() * metricDiff;                    // (r, T)
+    const MatrixXd WtMetricW =
+        W.transpose() * (m_invScale2.asDiagonal() * W);
+    const VectorXd latentWeights = beta(q);
+    MatrixXd H = MatrixXd::Zero(W.cols(), W.cols());
+    for (std::size_t l = 0; l < m_sigmas.size(); ++l)
+    {
+        const double s2 = m_sigmas[l] * m_sigmas[l];
+        const VectorXd kernelValues = (-d2 / (2.0 * s2)).array().exp();
+        const VectorXd weights =
+            m_betas[l] * latentWeights.cwiseProduct(kernelValues);
+        H.noalias() += (weights.sum() / s2) * WtMetricW;
+        H.noalias() -=
+            (Wd * (weights / s2).asDiagonal() * Wd.transpose()) / s2;
+    }
     H.noalias() += (m_eta + m_eta_t) * (W.transpose() * (m_M.asDiagonal() * W));
     return H;
 }
@@ -150,9 +199,8 @@ PreImageProjector::solve(const Eigen::Ref<const VectorXd>& q,
                          const Eigen::Ref<const VectorXd>& u_init,
                          const Eigen::Ref<const VectorXd>& u_prev) const
 {
-    const double s2 = m_sigma * m_sigma;
     const MatrixXd& D = m_kernel->snapshots();                         // (3N, T)
-    const VectorXd b = beta(q);
+    const VectorXd latentWeights = beta(q);
     VectorXd u = u_init;
     const VectorXd anchor   = m_M.cwiseProduct(m_eta * u_init + m_eta_t * u_prev);
     const VectorXd diag_reg = (m_eta + m_eta_t) * m_M;
@@ -160,11 +208,21 @@ PreImageProjector::solve(const Eigen::Ref<const VectorXd>& q,
     for (int it = 0; it < m_maxIter; ++it)
     {
         MatrixXd diff = (-D).colwise() + u;                            // (3N, T)
-        const VectorXd d2 = diff.colwise().squaredNorm();              // (T,)
-        const VectorXd kj = (-d2 / (2.0 * s2)).array().exp();          // (T,)
-        const VectorXd w  = b.cwiseProduct(kj);                        // (T,)
-        const VectorXd num = (D * w) / s2 + anchor;                    // (3N,)
-        const VectorXd den = diag_reg.array() + (w.sum() / s2);        // (3N,)
+        const MatrixXd metricDiff = m_invScale2.asDiagonal() * diff;
+        const VectorXd d2 =
+            (diff.array() * metricDiff.array()).colwise().sum();
+        VectorXd coefficients = VectorXd::Zero(D.cols());
+        for (std::size_t l = 0; l < m_sigmas.size(); ++l)
+        {
+            const double s2 = m_sigmas[l] * m_sigmas[l];
+            const VectorXd kernelValues = (-d2 / (2.0 * s2)).array().exp();
+            coefficients.noalias() += (m_betas[l] / s2)
+                * latentWeights.cwiseProduct(kernelValues);
+        }
+        const VectorXd num =
+            m_invScale2.cwiseProduct(D * coefficients) + anchor;
+        const VectorXd den =
+            coefficients.sum() * m_invScale2 + diag_reg;
         const VectorXd u_new = num.cwiseQuotient(den);
         if ((u_new - u).norm() <= m_tol * (1.0 + u.norm()))
             return u_new;
@@ -235,12 +293,17 @@ PreImageProjector::solveReduced(const Eigen::Ref<const VectorXd>& q,
         u = u0 + W * a;
         const VectorXd g = W.transpose() * grad(u, q, u0, u_prev);     // (r,)
         const MatrixXd H = reducedHessian(u, q, W);                    // (r, r)
-        const VectorXd da = H.ldlt().solve(g);
+        Eigen::LDLT<MatrixXd> factor(H);
+        if (factor.info() != Eigen::Success)
+            throw std::runtime_error("PreImageProjector: reduced Hessian factorization failed");
+        const VectorXd da = factor.solve(g);
+        if (factor.info() != Eigen::Success || !da.allFinite())
+            throw std::runtime_error("PreImageProjector: reduced Newton step failed");
         a -= da;
         if (da.norm() <= m_tol * (1.0 + a.norm()))
-            break;
+            return u0 + W * a;
     }
-    return u0 + W * a;
+    throw std::runtime_error("PreImageProjector: reduced Newton solve did not converge");
 }
 
 PreImageProjector::MatrixXd
@@ -271,6 +334,21 @@ PreImageProjector::jacobianAt(const Eigen::Ref<const VectorXd>& q,
 {
     const MatrixXd W = augmentWithBaseline(localBasisKNN(u_init));
     return jacobianInBasis(q, W, u);
+}
+
+PreImageProjector::VectorXd
+PreImageProjector::decodeFixed(const Eigen::Ref<const VectorXd>& q,
+                               const Eigen::Ref<const VectorXd>& u_init,
+                               const Eigen::Ref<const VectorXd>& u_prev) const
+{
+    return solveReduced(q, u_init, u_prev, m_fixedBasis);
+}
+
+PreImageProjector::MatrixXd
+PreImageProjector::jacobianFixedAt(const Eigen::Ref<const VectorXd>& q,
+                                   const Eigen::Ref<const VectorXd>& u) const
+{
+    return jacobianInBasis(q, m_fixedBasis, u);
 }
 
 

@@ -2,7 +2,7 @@
 *            Model Order Reduction plugin for SOFA                            *
 *                  Explicit kPCA pre-image reconstruction head                 *
 *
-*  C++ port of src/kpca/preimage.py (RBF only). See docs/methods/preimage_rom.md.
+*  C++ port of src/kpca/preimage.py (single/mixed RBF).
 *
 *  The OPR-Galerkin head (KernelProjector) decodes by incremental tangent
 *  integration with the metric G(u)⁻¹ and drops geometric stiffness. This head
@@ -33,7 +33,7 @@ public:
     using VectorXd = Eigen::VectorXd;
     using MatrixXd = Eigen::MatrixXd;
 
-    /// kernel must be an RBFKernel (with bundle data already installed).
+    /// kernel must be an RBFKernel or MixedRBFKernel (bundle data installed).
     PreImageProjector(std::unique_ptr<KernelProjector> kernel,
                       VectorXd massDiag,
                       double eta, double eta_t,
@@ -51,14 +51,14 @@ public:
     double eta()    const { return m_eta; }
     double eta_t()  const { return m_eta_t; }
     int    r()      const { return m_r; }
-    double sigma()  const { return m_sigma; }
+    const std::vector<double>& sigmas() const { return m_sigmas; }
     const VectorXd& massDiag() const { return m_M; }
     const MatrixXd& Jinit()    const { return m_Jinit; }  // (3N, m) = D·αᵀ
     const VectorXd& mean()     const { return m_mean; }   // (3N,) snapshot mean
 
     /// runtime overrides for the η-sweep (negative ⇒ keep bundle value).
     void setRegularization(double eta, double eta_t);
-    void setLocalRank(int r) { if (r > 0) m_r = r; }
+    void setLocalRank(int r);
 
     // β_j(q) = (αᵀ q)_j + 1/T
     VectorXd beta(const Eigen::Ref<const VectorXd>& q) const;
@@ -104,6 +104,13 @@ public:
                         const Eigen::Ref<const VectorXd>& u_init,
                         const Eigen::Ref<const VectorXd>& u) const;
 
+    // Consistent q-independent-basis decoder used by KernelPreImageMapping.
+    VectorXd decodeFixed(const Eigen::Ref<const VectorXd>& q,
+                         const Eigen::Ref<const VectorXd>& u_init,
+                         const Eigen::Ref<const VectorXd>& u_prev) const;
+    MatrixXd jacobianFixedAt(const Eigen::Ref<const VectorXd>& q,
+                             const Eigen::Ref<const VectorXd>& u) const;
+
 private:
     /// W ← orth([W_kNN | J_init]) so the η M·J_init Jacobian term is representable.
     MatrixXd augmentWithBaseline(const MatrixXd& Wknn) const;
@@ -111,9 +118,12 @@ private:
     MatrixXd jacobianInBasis(const Eigen::Ref<const VectorXd>& q,
                              const Eigen::Ref<const MatrixXd>& W,
                              const Eigen::Ref<const VectorXd>& u) const;
+    void rebuildFixedBasis();
 
-    std::unique_ptr<KernelProjector> m_kernel;  // RBF, bundle installed
-    double   m_sigma = 1.0;
+    std::unique_ptr<KernelProjector> m_kernel;  // single/mixed RBF, bundle installed
+    std::vector<double> m_sigmas;
+    std::vector<double> m_betas;
+    VectorXd m_invScale2;
     VectorXd m_M;        // (3N,) lumped diagonal mass
     double   m_eta = 0.0;
     double   m_eta_t = 0.0;
@@ -122,6 +132,7 @@ private:
     double   m_tol = 1e-8;
     MatrixXd m_Jinit;    // (3N, m) = D·αᵀ
     VectorXd m_mean;     // (3N,) snapshot mean
+    MatrixXd m_fixedBasis; // q-independent POD + span(J_init)
 };
 
 /// Factory: load an RBF bundle + preimage_config.json + mass_diagonal.txt.

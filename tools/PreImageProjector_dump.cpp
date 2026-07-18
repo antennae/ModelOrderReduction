@@ -75,8 +75,8 @@ int main(int argc, char** argv)
     }
 
     const Eigen::VectorXd u_init = proj->uInit(q);
-    const Eigen::VectorXd psi    = proj->solve(q, u_init, uprev);
-    const Eigen::MatrixXd J      = proj->jacobianLocal(q, u_init, uprev);
+    const Eigen::VectorXd psi    = proj->decodeFixed(q, u_init, uprev);
+    const Eigen::MatrixXd J      = proj->jacobianFixedAt(q, psi);
 
     const Eigen::Index m = static_cast<Eigen::Index>(proj->nbModes());
     Eigen::MatrixXd Kgeo(m, m);
@@ -85,7 +85,8 @@ int main(int argc, char** argv)
         Eigen::VectorXd ql = q;
         ql(l) += eps;
         const Eigen::VectorXd u_init_l = proj->uInit(ql);
-        const Eigen::MatrixXd Jl = proj->jacobianLocal(ql, u_init_l, uprev);
+        const Eigen::VectorXd psil = proj->decodeFixed(ql, u_init_l, uprev);
+        const Eigen::MatrixXd Jl = proj->jacobianFixedAt(ql, psil);
         Kgeo.col(l) = ((Jl - J) / eps).transpose() * f;       // (m,)
     }
 
@@ -98,6 +99,6 @@ int main(int argc, char** argv)
               << "  T="  << proj->nbSnapshots()
               << "  m="  << proj->nbModes()
               << "  eta=" << proj->eta() << "  eta_t=" << proj->eta_t()
-              << "  r=" << proj->r() << "  sigma=" << proj->sigma() << "\n";
+              << "  r=" << proj->r() << "  nSigma=" << proj->sigmas().size() << "\n";
     return 0;
 }

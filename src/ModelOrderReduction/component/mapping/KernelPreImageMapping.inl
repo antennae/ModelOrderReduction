@@ -40,6 +40,9 @@ void KernelPreImageMapping<TIn, TOut>::init()
         d_kernelBundle.getValue());
     m_proj->setRegularization(d_eta.getValue(), d_etaT.getValue());
     m_proj->setLocalRank(d_localRank.getValue());
+    if (m_proj->eta_t() != 0.0)
+        throw std::runtime_error(
+            "KernelPreImageMapping: etaT must be zero for a history-free decoder");
 
     msg_info(this) << "loaded pre-image bundle " << d_kernelBundle.getValue()
                    << "  kernel=" << m_proj->kernelName()
@@ -99,9 +102,9 @@ void KernelPreImageMapping<TIn, TOut>::ensureJ()
         && (m_q_decoded - q).norm() <= 1e-12 * (1.0 + q.norm()))
         u = m_u_decoded;
     else
-        u = m_proj->solve(q, u_init, m_u_prev);
+        u = m_proj->decodeFixed(q, u_init, m_u_prev);
     sofa::helper::AdvancedTimer::stepBegin("ensureJ: compute J");
-    m_J_cached = m_proj->jacobianAt(q, u_init, u);   // (3N, m), J at the decoded u
+    m_J_cached = m_proj->jacobianFixedAt(q, u);      // derivative of decodeFixed
     sofa::helper::AdvancedTimer::stepEnd("ensureJ: compute J");
     m_q_cached = q;
     m_J_dirty = false;
@@ -132,7 +135,7 @@ void KernelPreImageMapping<TIn, TOut>::apply(const core::MechanicalParams* /*mpa
     // the η_t coherence term. This replaces KernelPCAMapping's incremental
     // u_old + J·Δq — every step re-projects onto the manifold.
     const Eigen::VectorXd u_init = m_proj->uInit(q);
-    const Eigen::VectorXd u = m_proj->solve(q, u_init, m_u_prev);   // displacement
+    const Eigen::VectorXd u = m_proj->decodeFixed(q, u_init, m_u_prev);
 
     const Eigen::VectorXd& X0 = m_proj->X0();
     const Eigen::Index N = u.size() / 3;
@@ -244,7 +247,8 @@ void KernelPreImageMapping<TIn, TOut>::applyDJT(const core::MechanicalParams* mp
 
     const Eigen::VectorXd qp = m_q_cached + eps * dq;
     const Eigen::VectorXd u_init_p = m_proj->uInit(qp);
-    const Eigen::MatrixXd Jp = m_proj->jacobianLocal(qp, u_init_p, m_u_prev);
+    const Eigen::VectorXd up = m_proj->decodeFixed(qp, u_init_p, m_u_prev);
+    const Eigen::MatrixXd Jp = m_proj->jacobianFixedAt(qp, up);
     const Eigen::VectorXd dgeo = ((Jp - m_J_cached) / eps).transpose() * f;  // (m,)
 
     const double kfactor = static_cast<double>(mparams->kFactor());
