@@ -215,14 +215,25 @@ void HyperReducedRestShapeSpringsForceFieldKPCA<DataTypes>::addForce(const Mecha
     }
 
     // kPCA-specific: refresh the per-frame ∇_u k(u, snapshots) cache.
-    // u = current_position − X0 (snapshots are stored as displacements).
+    // u = current_position − X0 (snapshots are stored as displacements),
+    // built at bundle dim through indexMap; rigid-group verts (-1) are skipped.
     if (this->d_prepareECSW.getValue())
     {
-        const auto& X0 = this->m_projector->X0();
-        Eigen::VectorXd u(p1.size() * 3);
+        const auto& X0  = this->m_projector->X0();
+        const auto& idx = this->m_indexMap;
+        if (static_cast<long>(p1.size()) != idx.size())
+            throw std::runtime_error(
+                "HyperReducedRestShapeSpringsForceFieldKPCA: FF mstate has " +
+                std::to_string(p1.size()) + " verts but indexMap has " +
+                std::to_string(idx.size()) + " entries.");
+        Eigen::VectorXd u = Eigen::VectorXd::Zero(X0.size());
         for (unsigned i = 0; i < p1.size(); ++i)
+        {
+            const int def_i = idx(i);
+            if (def_i < 0) continue;
             for (unsigned c = 0; c < 3; ++c)
-                u(3 * i + c) = p1[i][c] - X0(3 * i + c);
+                u(3 * def_i + c) = p1[i][c] - X0(3 * def_i + c);
+        }
         this->prepareFrame(u);
     }
 

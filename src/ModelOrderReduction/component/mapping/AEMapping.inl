@@ -7,6 +7,9 @@
 #include <sofa/component/mapping/linear/LinearMapping.h>
 #include <sofa/core/MechanicalParams.h>
 #include <sofa/helper/logging/Messaging.h>
+
+#include <stdexcept>
+#include <string>
 #include <sofa/helper/ScopedAdvancedTimer.h>
 
 namespace sofa::component::mapping
@@ -45,12 +48,14 @@ void AEMapping<TIn, TOut>::init()
                    << "  (mstate dofs: in=" << n_in << "  out=" << n_out << ")";
 
     const unsigned nbTotal = m_projector->nbModes() + m_projector->nbRigid();
-    if (nbTotal < n_in)
+    if (nbTotal != n_in)
     {
-        msg_error(this) << "Bundle has " << nbTotal
-                        << " modes (m_def=" << m_projector->nbModes()
-                        << " + nbRigid=" << m_projector->nbRigid()
-                        << ") but mstate requests " << n_in;
+        // J is (3N x nbTotal); any other input size corrupts applyJ/applyJT.
+        throw std::runtime_error(
+            this->getName() + ": bundle has " + std::to_string(nbTotal) +
+            " modes (m_def=" + std::to_string(m_projector->nbModes()) +
+            " + nbRigid=" + std::to_string(m_projector->nbRigid()) +
+            ") but the input mstate has " + std::to_string(n_in) + " dofs");
     }
 
     const std::string mode = d_decodeMode.getValue();

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
+#include <regex>
 
 #include <torch/script.h>
 
@@ -52,8 +53,6 @@ Eigen::MatrixXd tensor_to_eigen_matrix(const torch::Tensor& t)
     const auto sz = tc.sizes();
     if (sz.size() != 2)
         throw std::runtime_error("expected 2D tensor for weight matrix");
-    Eigen::MatrixXd M(sz[0], sz[1]);
-    std::memcpy(M.data(), tc.data_ptr<double>(), M.size() * sizeof(double));
     // libtorch stores row-major; Eigen default is column-major → need transpose.
     return Eigen::Map<const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(
         tc.data_ptr<double>(), sz[0], sz[1]);
@@ -168,7 +167,22 @@ void AEProjector::loadFromBundle(const std::string& bundle_dir)
     if (static_cast<unsigned>(m_weights.back().rows()) != m_nbDofs)
         throw std::runtime_error("decoder output dim != 3N from X0");
 
-    m_activation = "silu";  // v1 only
+    // arch.json names the activation the decoder was trained with; only SiLU
+    // is implemented here, so any other value must fail instead of decoding wrong.
+    const auto arch_path = (root / "arch.json").string();
+    std::ifstream arch_in(arch_path);
+    if (!arch_in)
+        throw std::runtime_error("arch.json not found in bundle: " + bundle_dir);
+    std::stringstream arch_ss;
+    arch_ss << arch_in.rdbuf();
+    const std::string arch = arch_ss.str();
+    std::smatch act_match;
+    if (!std::regex_search(arch, act_match, std::regex("\"activation\"\\s*:\\s*\"([^\"]*)\"")))
+        throw std::runtime_error("arch.json has no \"activation\" entry: " + arch_path);
+    m_activation = act_match[1].str();
+    if (m_activation != "silu")
+        throw std::runtime_error("unsupported AE activation '" + m_activation
+                                 + "' in " + arch_path + " (only silu is implemented)");
     m_cache_valid = false;  // bundle changed → invalidate forward cache
 
     // 4) Optional encoder.
@@ -221,7 +235,7 @@ AEProjector::MatrixXd AEProjector::J(const Eigen::Ref<const VectorXd>& q) const
     if (static_cast<unsigned>(q.size()) != m_nbModes)
         throw std::runtime_error("J: q.size != nbModes");
 
-    // Kept for parity tests / dumper; the runtime path uses applyJ/project_force.
+    // Dense J is the runtime path (AEMapping::ensureJ, HyperReducedHelperDecoder::prepareFrame).
     // J = diag(col_std) · W_n · D_{n-1} · W_{n-1} · D_{n-2} · ... · W_1
     // where D_i = diag(σ'(z_i)). Build right-to-left so the running dim is m
     // until the final left-multiply by diag(col_std).

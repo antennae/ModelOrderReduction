@@ -51,19 +51,23 @@ using core::visual::VisualParams;
 
 namespace {
 inline sofa::core::behavior::MechanicalState<sofa::defaulttype::Vec1Types>*
-_find_vec1d_mstate_upwards(sofa::core::objectmodel::BaseContext* ctx)
+_find_vec1d_mstate_upwards(sofa::core::objectmodel::BaseContext* ctx,
+                           std::size_t expectedSize)
 {
     using sofa::defaulttype::Vec1Types;
     using sofa::core::behavior::MechanicalState;
     if (!ctx) return nullptr;
     auto* mstate = ctx->getMechanicalState();
     auto* typed  = dynamic_cast<MechanicalState<Vec1Types>*>(mstate);
-    if (typed) return typed;
+    // Size filter: on Rigidify + articulated scenes the parent chain also
+    // holds size-1 Vec1d servo angles; only the latent state has this size.
+    if (typed && static_cast<std::size_t>(typed->getSize()) == expectedSize)
+        return typed;
     auto* node = dynamic_cast<sofa::core::objectmodel::BaseNode*>(ctx);
     if (!node) return nullptr;
     for (auto* parent : node->getParents())
     {
-        auto* found = _find_vec1d_mstate_upwards(parent->getContext());
+        auto* found = _find_vec1d_mstate_upwards(parent->getContext(), expectedSize);
         if (found) return found;
     }
     return nullptr;
@@ -123,12 +127,18 @@ void HyperReducedRestShapeSpringsForceFieldAE<DataTypes>::bwdInit()
     lastUpdatedStep = -1.0;
     this->initMOR(d_points.getValue().size(), notMuted());
 
-    m_qState = _find_vec1d_mstate_upwards(this->getContext());
-    if (this->d_prepareECSW.getValue() && !m_qState)
+    // The latent state is read only during Gie collection (prepareECSW).
+    if (this->d_prepareECSW.getValue())
     {
-        msg_error(this) << "AE rest-shape springs require a Vec1d MechanicalObject "
-                          "in the parent chain (typically the AEMapping's "
-                          "input mstate). None found.";
+        const std::size_t expected =
+            static_cast<std::size_t>(this->m_nbRigid) + static_cast<std::size_t>(this->m_nbDef);
+        m_qState = _find_vec1d_mstate_upwards(this->getContext(), expected);
+        if (!m_qState)
+        {
+            msg_error(this) << "AE rest-shape springs require a Vec1d MechanicalObject "
+                               "of size " << expected << " (the AEMapping's input "
+                               "latent state) in the parent chain. None found.";
+        }
     }
 }
 

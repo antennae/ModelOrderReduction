@@ -6,6 +6,9 @@
 #include <ModelOrderReduction/component/mapping/QuadraticManifoldMapping.h>
 #include <sofa/component/mapping/linear/LinearMapping.h>
 #include <sofa/helper/logging/Messaging.h>
+
+#include <stdexcept>
+#include <string>
 #include <sofa/helper/ScopedAdvancedTimer.h>
 
 namespace sofa::component::mapping
@@ -37,8 +40,9 @@ void QuadraticManifoldMapping<TIn, TOut>::init()
 
     if (m_projector->nbModes() != n_in)
     {
-        msg_error(this) << "Bundle has " << m_projector->nbModes()
-                        << " modes but mstate requests " << n_in;
+        throw std::runtime_error(
+            this->getName() + ": bundle has " + std::to_string(m_projector->nbModes()) +
+            " modes but the input mstate has " + std::to_string(n_in) + " dofs");
     }
 
     m_q_prev.setZero(n_in);

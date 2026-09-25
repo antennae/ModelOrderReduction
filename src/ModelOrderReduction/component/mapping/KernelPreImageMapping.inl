@@ -7,6 +7,9 @@
 #include <sofa/component/mapping/linear/LinearMapping.h>
 #include <sofa/core/MechanicalParams.h>
 #include <sofa/helper/logging/Messaging.h>
+
+#include <stdexcept>
+#include <string>
 #include <sofa/helper/ScopedAdvancedTimer.h>
 
 namespace sofa::component::mapping
@@ -55,10 +58,11 @@ void KernelPreImageMapping<TIn, TOut>::init()
                    << "  (reduced mstate dofs in=" << n_in << ")";
 
     if (m_proj->nbModes() != n_in)
-        msg_error(this) << "Bundle has m=" << m_proj->nbModes()
-                        << " modes but the reduced mstate requests " << n_in
-                        << ". The pre-image head does not support rigid-mode "
-                           "augmentation; m must equal the Vec1d dof count.";
+        throw std::runtime_error(
+            this->getName() + ": bundle has m=" + std::to_string(m_proj->nbModes()) +
+            " modes but the reduced mstate has " + std::to_string(n_in) +
+            " dofs. The pre-image head does not support rigid-mode "
+            "augmentation; m must equal the Vec1d dof count.");
 
     // Previous-step pre-image (η_t anchor + warm reference). Rest displacement
     // ≈ 0; the reduced state is expected to be initialised to q_rest=encode(0)
